@@ -7,6 +7,8 @@ from scipy.constants import N_A, pi
 from scipy.optimize import nnls
 from numpy.linalg import inv
 
+np.set_printoptions(precision=15, suppress=False)
+
 # =============================================================================
 # DANE JĄDROWE – przykładowy słownik z danymi (λ [1/s])
 # =============================================================================
@@ -59,47 +61,87 @@ def load_rotation_scheme(filename):
     except Exception as e:
         raise Exception(f"Błąd przy wczytywaniu schematu rotacji: {e}")
 
+
+def load_rotation_times(filename):
+    """
+    Wczytuje plik z czasami rotacji.
+    Każda linia zawiera jedną wartość czasu.
+    Jeśli pierwsza wartość nie wynosi 0, zostanie ona dodana na początku.
+    """
+    try:
+        times = np.loadtxt(filename)
+        # Jeśli pierwszy czas nie jest równy 0, dodajemy 0 na początku
+        if times[3] > 1e10:
+            times = times / 1e12
+            
+        times = times.tolist() if isinstance(times, np.ndarray) else times
+        if times[0] != 0:
+            times = [0.0] + times
+        return times
+    except Exception as e:
+        raise Exception(f"Błąd przy wczytywaniu pliku z czasami rotacji: {e}")
+
+
 def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurements):
     """
     Buduje macierz A o rozmiarze (n_measurements, n_iso).
+    
     Jeśli detektor posiada plik schematu rotacji (klucz "rotation_scheme_file"),
-    wykorzystujemy go – w przeciwnym razie stosujemy domyślny schemat.
-    W każdym wierszu nakładana jest korekta czasowa zależna od czasu pomiaru i λ.
+    wykorzystujemy go do ustalenia przesunięć tarczy.
+    
+    Jeśli dodatkowo podany jest plik z czasami rotacji (klucz "rotation_times_file"),
+    obliczamy czasy pomiarów (dt) jako:
+      - pierwszy pomiar: od 0 do pierwszej wartości (po dodaniu 0, jeśli nie ma)
+      - kolejne pomiary: różnica między 2n-1 a 2n wartością z pliku.
     """
     n_sources = len(A_single)
     intensity = general_params["intensity"]
     time_delay = general_params["time_delay"]
 
+    # Wczytanie schematu rotacji
     scheme = load_rotation_scheme(detector["rotation_scheme_file"])
-    # Upewnij się, że lista dt ma tyle samo elementów, co shifts.
     if len(scheme["dt"]) < len(scheme["shifts"]):
-        # Rozszerzamy scheme["dt"] powtarzając ostatni element
         scheme["dt"] = scheme["dt"] + [scheme["dt"][-1]] * (len(scheme["shifts"]) - len(scheme["dt"]))
     
     m_total = len(scheme["shifts"])
-    m = n_measurements if n_measurements is not None else m_total
-    m = min(m, m_total)
 
+    # Jeśli podano plik z czasami rotacji, wykorzystujemy go do wyznaczenia dt_list
+    if "rotation_times_file" in detector and detector["rotation_times_file"]:
+        rotation_times = load_rotation_times(detector["rotation_times_file"])
+        dt_list = []
+        num_pairs = (len(rotation_times) - 1) // 2
+        for i in range(num_pairs):
+            dt_i = rotation_times[2 * i + 1] - rotation_times[2 * i]
+            dt_list.append(dt_i)
+        m_file = len(dt_list)
+        m = n_measurements if n_measurements is not None else m_file
+        m = min(m, m_file, m_total)
+    else:
+        m = n_measurements if n_measurements is not None else m_total
+        m = min(m, m_total)
+        dt_list = scheme["dt"][:m]
+
+    # Obliczanie przesunięć (rolling) – na podstawie schematu
     cs = [0] * m
     cs[0] = scheme["shifts"][0] % n_sources
     for i in range(1, m):
         cs[i] = (cs[i - 1] + scheme["shifts"][i]) % n_sources
 
+    # Wyznaczenie czasów rozpoczęcia pomiarów
     t_starts = [0] * m
-    t_starts[0] = time_delay
+    t_starts[0] = time_delay  # czas opóźnienia pomiędzy startem a pierwszym pomiarem
     for i in range(1, m):
-        # Dla pomiaru i, t_start jest sumą poprzednich czasów pomiarów (dt[0] dla i==1, dt[1] dla i==2, itd.)
-        t_starts[i] = t_starts[i - 1] + scheme["dt"][i - 1]
+        t_starts[i] = t_starts[i - 1] + dt_list[i - 1]
 
-    A_mat = np.zeros((m, n_sources))
+    # Budowa macierzy A: dla każdego pomiaru nakładamy przesuniętą wersję wektora A_single,
+    # skalowaną czynnikiem zależnym od czasu pomiaru oraz λ.
+    A_mat = np.zeros((m, n_sources*len(lam_vector)), dtype=np.float64)
     for i in range(m):
         rolled = np.roll(A_single, cs[i])
-        # Dla bieżącego pomiaru pobieramy czas trwania pomiaru
-        dt_i = scheme["dt"][i]
+        dt_i = dt_list[i]
         for j in range(len(lam_vector)):
             factor = (1 - np.exp(-lam_vector[j] * dt_i)) * np.exp(-lam_vector[j] * t_starts[i]) * intensity
-            A_mat[i] = rolled * factor
-
+            A_mat[i][16*(j):16*(j+1)] = rolled * factor
     return A_mat, m, scheme
 
 def correct_counts(y_raw, y_err, detector, general_params, m, scheme):
@@ -112,8 +154,8 @@ def correct_counts(y_raw, y_err, detector, general_params, m, scheme):
     y_err_cor = y_err.copy()
     for i in range(m):
         dt = scheme["dt"][i]
-        y_cor[i] *= dt
-        y_err_cor[i] *= dt
+        y_cor[i] #*= dt
+        y_err_cor[i] #*= dt
     return y_cor, y_err_cor
 
 # =============================================================================
@@ -219,6 +261,7 @@ def run_analysis(general_params, detectors):
     res_var = chi2 / (N - k) if N > k else chi2
     M = Aw.T @ Aw
     try:
+        print(A_block)
         M_inv = inv(M)
     except Exception as e:
         return {"errors": errors + [f"Błąd przy inwersji macierzy: {e}"], "y": y.tolist()}
@@ -307,6 +350,11 @@ class DetectorDialog(tk.Toplevel):
         self.entry_rot_scheme.grid(row=r, column=1)
         tk.Button(self, text="Przeglądaj", command=self.browse_rot_scheme).grid(row=r, column=2)
         r += 1
+        tk.Label(self, text="Plik kroków rotacji:").grid(row=r, column=0, sticky="e")
+        self.entry_steps_scheme = tk.Entry(self, width=100)
+        self.entry_steps_scheme.grid(row=r, column=1)
+        tk.Button(self, text="Przeglądaj", command=self.browse_steps_scheme).grid(row=r, column=2)
+        r += 1
         tk.Button(self, text="OK", command=self.on_ok).grid(row=r, column=0, pady=10)
         tk.Button(self, text="Anuluj", command=self.destroy).grid(row=r, column=1, pady=10)
     
@@ -331,6 +379,13 @@ class DetectorDialog(tk.Toplevel):
             self.entry_rot_scheme.delete(0, tk.END)
             self.entry_rot_scheme.insert(0, filename)
     
+    def browse_steps_scheme(self):
+        filename = filedialog.askopenfilename(title="Wybierz plik kroków rotacji", 
+                                              filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+        if filename:
+            self.entry_steps_scheme.delete(0, tk.END)
+            self.entry_steps_scheme.insert(0, filename)
+    
     def populate_fields(self, detector):
         self.entry_name.insert(0, detector["name"])
         self.entry_A_file.insert(0, detector["A_file"])
@@ -338,6 +393,7 @@ class DetectorDialog(tk.Toplevel):
         self.entry_n_meas.insert(0, str(detector.get("n_measurements", "")))
         self.entry_isotopy.insert(0, detector.get("isotopy", ""))
         self.entry_rot_scheme.insert(0, detector.get("rotation_scheme_file", ""))
+        self.entry_steps_scheme.insert(0, detector.get("rotation_times_file", ""))
     
     def on_ok(self):
         try:
@@ -348,13 +404,15 @@ class DetectorDialog(tk.Toplevel):
             n_measurements = int(n_measurements) if n_measurements else None
             isotopy = self.entry_isotopy.get().strip()
             rotation_scheme_file = self.entry_rot_scheme.get().strip()
+            rotation_times_file = self.entry_steps_scheme.get().strip()
             self.result = {
                 "name": name,
                 "A_file": A_file,
                 "counts_file": counts_file,
                 "n_measurements": n_measurements,
                 "isotopy": isotopy,
-                "rotation_scheme_file": rotation_scheme_file
+                "rotation_scheme_file": rotation_scheme_file,
+                "rotation_times_file": rotation_times_file
             }
             self.destroy()
         except Exception as e:
@@ -398,10 +456,6 @@ class MainApplication(tk.Tk):
         self.entry_intensity = tk.Entry(frame_params, width=15)
         self.entry_intensity.grid(row=1, column=1, padx=5, pady=2)
         self.entry_intensity.insert(0, str(self.general_params["intensity"]))
-        tk.Label(frame_params, text="Liczba obrotów (a):").grid(row=1, column=2, sticky="e")
-        self.entry_a = tk.Entry(frame_params, width=15)
-        self.entry_a.grid(row=1, column=3, padx=5, pady=2)
-        self.entry_a.insert(0, str(self.general_params["a"]))
         
         frame_detectors = tk.LabelFrame(self, text="Detektory")
         frame_detectors.pack(fill="both", expand=True, padx=10, pady=5)
@@ -474,7 +528,6 @@ class MainApplication(tk.Tk):
             self.general_params["time_delay"] = float(self.entry_time_delay.get())
             self.general_params["TOB"] = float(self.entry_TOB.get())
             self.general_params["intensity"] = float(self.entry_intensity.get())
-            self.general_params["a"] = int(self.entry_a.get())
         except Exception as e:
             messagebox.showerror("Błąd", f"Błąd przy wczytywaniu parametrów ogólnych: {e}")
             return
@@ -525,9 +578,9 @@ class MainApplication(tk.Tk):
             self.text_results.insert(tk.END, f"  Pearson: {met['Pearson']:.4e}\n\n")
         self.text_results.insert(tk.END, "Oszacowane aktywności (dla poszczególnych izotopów):\n")
         isotopy = [iso.strip() for iso in self.detectors[0]["isotopy"].split(",")]
-        for iso in isotopy:
-            for act, err in zip(results["x_nnls"], results["param_errors"]):
-                self.text_results.insert(tk.END, f"{iso}: {act:.4e} ± {err:.4e}\n")
+        for j in range(len(isotopy)):
+            for act, err in zip(results["x_nnls"][16*j:16*(j+1)], results["param_errors"]):
+                self.text_results.insert(tk.END, f"{isotopy[j]}: {act:.4e} ± {err:.4e}\n")
         
         # Rysowanie wykresów dla każdego detektora
         y_all = np.array(results["y"])
@@ -609,8 +662,6 @@ class MainApplication(tk.Tk):
                 self.entry_TOB.insert(0, str(self.general_params["TOB"]))
                 self.entry_intensity.delete(0, tk.END)
                 self.entry_intensity.insert(0, str(self.general_params["intensity"]))
-                self.entry_a.delete(0, tk.END)
-                self.entry_a.insert(0, str(self.general_params["a"]))
                 self.update_detectors_listbox()
                 messagebox.showinfo("Sukces", "Projekt wczytany.")
             except Exception as e:
