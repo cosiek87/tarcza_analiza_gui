@@ -52,25 +52,25 @@ Program realizuje analizę w kilku etapach:
 - Dane zliczeń są korygowane przy użyciu funkcji `correct_counts`, aby uwzględnić czas trwania pomiaru.
 
 #### b) Dopasowanie modelu
-- Z uzyskanej macierzy A oraz wektora zliczeń **y**, wraz z przypisanymi wagami (błędy pomiarowe), rozwiązywany jest problem NNLS (Non-Negative Least Squares). Celem jest znalezienie parametrów \( x_{\text{nnls}} \), tak aby:
-  \[
+- Z uzyskanej macierzy A oraz wektora zliczeń **y**, wraz z przypisanymi wagami (błędy pomiarowe), rozwiązywany jest problem NNLS (Non-Negative Least Squares). Celem jest znalezienie parametrów $\( x_{\text{nnls}} \)$, tak aby:
+  $$
   A \times x \approx y
-  \]
+  $$
 
 #### c) Obliczenie błędów i propagacja niepewności
 - Po dopasowaniu modelu obliczana jest macierz kowariancji parametrów.
-- Przy użyciu propagacji błędów wyznaczany jest błąd dla każdej wyestymowanej wartości \( y_{\text{est}} \):
-  \[
+- Przy użyciu propagacji błędów wyznaczany jest błąd dla każdej wyestymowanej wartości $\( y_{\text{est}} \)$:
+  $$
   \text{cov}_{y_{\text{est}}} = A_{\text{wysokie}} \times \text{cov}_x \times A_{\text{wysokie}}^T, \quad y_{\text{est\_errors}} = \sqrt{\text{diag}(\text{cov}_{y_{\text{est}}})}.
-  \]
+  $$
 
 #### d) Obliczanie metryk jakości
 Dla każdego detektora wyznaczane są następujące metryki:
 - **aFactor:**  
   Średnia względna różnica między danymi eksperymentalnymi a wyestymowanymi wartościami, definiowana jako:
-  \[
+  $$
   \text{aFactor} = \text{mean}\left(\frac{|y_{\text{exp}} - y_{\text{est}}|}{y_{\text{exp}} + y_{\text{est}} + \epsilon}\right)
-  \]
+  $$
 - **RMSE (Root Mean Squared Error):**  
   Pierwiastek z średniej kwadratów różnic między danymi a oszacowanymi wartościami.
 - **MAE (Mean Absolute Error):**  
@@ -86,9 +86,9 @@ Dla każdego detektora wyznaczane są następujące metryki:
 - **Wykresy:**  
   Program generuje następujące rodzaje wykresów:
   - **Dane vs. Model:**  
-    Dane eksperymentalne są przedstawione jako punkty z errorbarami (odzwierciedlającymi niepewność pomiarową), natomiast model jest przedstawiony jako linia. Wokół linii modelu rysowany jest korytarz błędu (np. ±3·\( y_{\text{est\_errors}} \)), co pozwala ocenić zakres niepewności.
+    Dane eksperymentalne są przedstawione jako punkty z errorbarami (odzwierciedlającymi niepewność pomiarową), natomiast model jest przedstawiony jako linia. Wokół linii modelu rysowany jest korytarz błędu (np. $±3·\( y_{\text{est\_errors}} \)$), co pozwala ocenić zakres niepewności.
   - **Scatter Plot (Rozrzut):**  
-    Wykres przedstawia zależność między danymi eksperymentalnymi a wartościami wyestymowanymi przez model. Dodatkowo rysowana jest linia idealnego dopasowania \( y = x \), która umożliwia ocenę liniowej korelacji.
+    Wykres przedstawia zależność między danymi eksperymentalnymi a wartościami wyestymowanymi przez model. Dodatkowo rysowana jest linia idealnego dopasowania $\( y = x \)$, która umożliwia ocenę liniowej korelacji.
   - **Macierz Wydajności:**  
     Jeśli dla detektora dostępny jest schemat rotacji, generowany jest wykres macierzy wydajności, gdzie kolorystyka obrazuje poziom efektywności poszczególnych źródeł. Pozwala to na szczegółową ocenę jakości pomiarów.
 
