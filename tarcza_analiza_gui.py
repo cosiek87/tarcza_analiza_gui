@@ -252,7 +252,7 @@ def run_analysis(general_params, detectors):
     yw = W_sqrt @ y
 
     try:
-        x_nnls, rnorm = nnls(A_wysokie, y)
+        x_nnls, rnorm = nnls(Aw, yw)
     except Exception as e:
         return {"errors": errors + [f"Błąd przy dopasowaniu NNLS: {e}"], "y": y.tolist()}
 
@@ -261,13 +261,18 @@ def run_analysis(general_params, detectors):
     res_var = chi2 / (N - k) if N > k else chi2
     M = Aw.T @ Aw
     try:
-        print(A_block)
+        # Uncomment the following line if logging is needed for debugging
+        # logging.debug(f"A_block: {A_block}")
         M_inv = inv(M)
     except Exception as e:
         return {"errors": errors + [f"Błąd przy inwersji macierzy: {e}"], "y": y.tolist()}
     cov_x = res_var * M_inv
     param_errors = np.sqrt(np.diag(cov_x))
     y_est = A_wysokie @ x_nnls
+    # Obliczenie macierzy kowariancji dla y_est
+    cov_y_est = A_wysokie @ cov_x @ A_wysokie.T
+    # Obliczenie błędów dla każdego punktu y_est
+    y_est_errors = np.sqrt(np.diag(cov_y_est))
 
     metrics_all = []
     index_start = 0
@@ -292,7 +297,9 @@ def run_analysis(general_params, detectors):
         "detector_metrics": metrics_all,
         "detector_names": detector_names_success,
         "y": y.tolist(),
+        "y_unc": y_sigma.tolist(),
         "y_est": y_est.tolist(),
+        "y_est_errors": y_est_errors.tolist(),
         "A_wysokie_shape": A_wysokie.shape,
         "y_shape": y.shape,
         "A_blocks": A_blocks,
@@ -571,65 +578,111 @@ class MainApplication(tk.Tk):
         self.text_results.insert(tk.END, f"Chi2: {results['chi2']}\n\n")
         for i, met in enumerate(results["detector_metrics"]):
             self.text_results.insert(tk.END, f"Detektor {results['detector_names'][i]}:\n")
-            self.text_results.insert(tk.END, f"  aFactor: {met['aFactor']:.4e}\n")
-            self.text_results.insert(tk.END, f"  RMSE:    {met['RMSE']:.4e}\n")
-            self.text_results.insert(tk.END, f"  MAE:     {met['MAE']:.4e}\n")
-            self.text_results.insert(tk.END, f"  R2:      {met['R2']:.4e}\n")
-            self.text_results.insert(tk.END, f"  Pearson: {met['Pearson']:.4e}\n\n")
+            self.text_results.insert(tk.END, f"  aFactor:\t\t\t\t\t\t\t{met['aFactor']:.4e}\n")
+            self.text_results.insert(tk.END, f"  RMSE -  Root Mean Squared Error:\t\t\t\t\t\t\t{met['RMSE']:.4e}\n")
+            self.text_results.insert(tk.END, f"  MAE - Mean Absolute Error:\t\t\t\t\t\t\t{met['MAE']:.4e}\n")
+            self.text_results.insert(tk.END, f"  R2 - Współczynnik determinacji:\t\t\t\t\t\t\t{met['R2']:.4e}\n")
+            self.text_results.insert(tk.END, f"  Pearson - Współczynnik korelacji Pearsona:\t\t\t\t\t\t\t{met['Pearson']:.4e}\n\n")
         self.text_results.insert(tk.END, "Oszacowane aktywności (dla poszczególnych izotopów):\n")
         isotopy = [iso.strip() for iso in self.detectors[0]["isotopy"].split(",")]
         for j in range(len(isotopy)):
-            for act, err in zip(results["x_nnls"][16*j:16*(j+1)], results["param_errors"]):
-                self.text_results.insert(tk.END, f"{isotopy[j]}: {act:.4e} ± {err:.4e}\n")
+            for k, (act, err) in enumerate(zip(results["x_nnls"][16*j:16*(j+1)], results["param_errors"][16*j:16*(j+1)])):
+                self.text_results.insert(tk.END, f"Źródło {k+1} - {isotopy[j]}: {act:.2e} ± {err:.2e}\n")
         
-        # Rysowanie wykresów dla każdego detektora
+        # Funkcja pomocnicza, która dobiera układ subplotów
+        def get_subplot_grid(n):
+            if n == 1:
+                return (1, 1)
+            elif n == 2:
+                return (1, 2)
+            elif n <= 4:
+                return (2, 2)
+            else:
+                return (2, 3)
+
+        # Przekształcamy dane wejściowe do tablic numpy
         y_all = np.array(results["y"])
+        y_all_errors = np.array(results["y_unc"])
         y_est_all = np.array(results["y_est"])
+        y_est_all_errors = np.array(results["y_est_errors"])
         index_start = 0
         num_detectors = len(results["detector_names"])
+
+        # Przygotowanie figur i subplotów dla wykresów "dane vs. model"
+        rows, cols = get_subplot_grid(num_detectors)
+        fig1, axs1 = plt.subplots(rows, cols, figsize=(8 * cols, 4 * rows))
+        axs1 = np.array(axs1).flatten()  # spłaszczamy tablicę osi
+
+        # Przygotowanie figur i subplotów dla wykresów scatter
+        fig2, axs2 = plt.subplots(rows, cols, figsize=(6 * cols, 6 * rows))
+        axs2 = np.array(axs2).flatten()
+
+        # Przygotowanie subplotów dla macierzy wydajności (tylko dla detektorów, które mają schemat)
+        detectors_with_scheme = [i for i in range(num_detectors) if results["detector_has_scheme"][i]]
+        num_scheme = len(detectors_with_scheme)
+        if num_scheme > 0:
+            rows_scheme, cols_scheme = get_subplot_grid(num_scheme)
+            fig3, axs3 = plt.subplots(rows_scheme, cols_scheme, figsize=(8 * cols_scheme, 4 * rows_scheme))
+            axs3 = np.array(axs3).flatten()
+
+        # Indeks dla subplotów macierzy wydajności
+        scheme_plot_index = 0
+
+        # Pętla po wszystkich detektorach
         for i in range(num_detectors):
             m = results["detector_segments"][i]
             i1 = index_start
             i2 = index_start + m
             y_det = y_all[i1:i2]
+            y_errors = y_all_errors[i1:i2]
             y_est_det = y_est_all[i1:i2]
+            y_est_errors = y_est_all_errors[i1:i2]
             index_start = i2
 
-            # Wykres pomiarów vs. modelu
-            plt.figure(figsize=(8,4))
-            plt.errorbar(range(m), y_det, fmt='o', color="blue", label="Pomiar", alpha=0.6)
-            plt.plot(range(m), y_est_det, '-r', label="Model (A·x)", alpha=0.8)
-            plt.title(f"Detektor: {results['detector_names'][i]} - dane vs. model")
-            plt.xlabel("Numer pomiaru")
-            plt.ylabel("Skorygowane zliczenia")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            plt.show()
-            
-            # Wykres scatter: model vs. pomiary
-            plt.figure(figsize=(6,6))
-            plt.scatter(y_det, y_est_det, c='green', alpha=0.7)
-            plt.plot([min(y_det), max(y_det)], [min(y_det), max(y_det)], 'k--', label="Idealne dopasowanie")
-            plt.title(f"Detektor: {results['detector_names'][i]} - Scatter: pomiary vs. model")
-            plt.xlabel("Dane eksperymentalne")
-            plt.ylabel("Dane oszacowane")
-            plt.legend()
-            plt.grid(True)
-            plt.tight_layout()
-            plt.show()
+            # Wykres pomiarów vs. model
+            ax1 = axs1[i]
+            ax1.errorbar(range(m), y_det, yerr=y_errors, fmt='o', color="blue", 
+                        label="Pomiar", alpha=0.6)
+            ax1.plot(range(m), y_est_det, '-r', label="Model (A·x)", alpha=0.8)
+            ax1.fill_between(range(m),
+                            np.array(y_est_det) - 3 * np.array(y_est_errors),
+                            np.array(y_est_det) + 3 * np.array(y_est_errors),
+                            color='red', alpha=0.3, label='Korytarz błędu modelu')
+            ax1.set_title(f"Detektor: {results['detector_names'][i]} - dane vs. model")
+            ax1.set_xlabel("Numer pomiaru")
+            ax1.set_ylabel("Skorygowane zliczenia")
+            ax1.legend()
+            ax1.grid(True)
 
-            # Jeśli dostępny był schemat rotacji – rysujemy macierz wydajności
+            # Wykres scatter: model vs. pomiary
+            ax2 = axs2[i]
+            ax2.scatter(y_det, y_est_det, c='green', alpha=0.7)
+            ax2.plot([min(y_det), max(y_det)], [min(y_det), max(y_det)], 'k--', 
+                    label="Idealne dopasowanie")
+            ax2.set_title(f"Detektor: {results['detector_names'][i]} - Scatter: pomiary vs. model")
+            ax2.set_xlabel("Dane eksperymentalne")
+            ax2.set_ylabel("Dane oszacowane")
+            ax2.legend()
+            ax2.grid(True)
+
+            # Wykres macierzy wydajności, jeśli dostępny
             if results["detector_has_scheme"][i]:
+                ax3 = axs3[scheme_plot_index]
                 A_block = results["A_blocks"][i]
-                plt.figure(figsize=(8,4))
-                plt.imshow(A_block, aspect='auto', interpolation='nearest')
-                plt.colorbar()
-                plt.title(f"Macierz wydajności - {results['detector_names'][i]}")
-                plt.xlabel("Izotopy")
-                plt.ylabel("Pomiary")
-                plt.tight_layout()
-                plt.show()
+                im = ax3.imshow(A_block, aspect='auto', interpolation='nearest')
+                fig3.colorbar(im, ax=ax3)
+                ax3.set_title(f"Macierz wydajności - {results['detector_names'][i]}")
+                ax3.set_xlabel("Izotopy")
+                ax3.set_ylabel("Pomiary")
+                scheme_plot_index += 1
+
+        # Po pętli, dostosowanie układu subplotów dla każdej figury
+        fig1.tight_layout()
+        fig2.tight_layout()
+        if num_scheme > 0:
+            fig3.tight_layout()
+
+        plt.show()
     
     def save_project(self):
         project = {
