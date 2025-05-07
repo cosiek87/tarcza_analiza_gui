@@ -4,7 +4,7 @@
 
 Test sprawdza poprawność działania algorytmu na danych syntetycznych pochodzących z symulacji dwóch zestawów aktywności izotopów C11 i N13. Każdy zestaw składa się z 16 slotów (miejsc), z których 15 zawiera określoną aktywność, a jeden slot pozostaje pusty (nie zawiera żadnej aktywności). 
 
-Zasymulowane źródła emitowały pojedynczą gammę o energii 511 keV.
+Zasymulowane źródła emitowały pojedynczą gammę o energii 511 keV. Intensywności linii = 1
 
 ## Aktywności źródeł
 
