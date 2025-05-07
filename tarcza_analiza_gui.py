@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import N_A, pi
 from scipy.optimize import nnls
-from numpy.linalg import inv
+from numpy.linalg import pinv, inv
 
 np.set_printoptions(precision=15, suppress=False)
 
@@ -141,7 +141,10 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
         dt_i = dt_list[i]
         for j in range(len(lam_vector)):
             factor = (1 - np.exp(-lam_vector[j] * dt_i)) * np.exp(-lam_vector[j] * t_starts[i]) * intensity
-            A_mat[i][16*(j):16*(j+1)] = rolled * factor
+            tmp = rolled * factor
+            tmp[15] = 0
+            A_mat[i][16 * j:16 * (j + 1)] = tmp
+    # Debugging print statement removed for production
     return A_mat, m, scheme
 
 def correct_counts(y_raw, y_err, detector, general_params, m, scheme):
@@ -262,10 +265,10 @@ def run_analysis(general_params, detectors):
     M = Aw.T @ Aw
     try:
         # Uncomment the following line if logging is needed for debugging
-        # logging.debug(f"A_block: {A_block}")
+        # print(f"A_block: {M}")
         M_inv = inv(M)
     except Exception as e:
-        return {"errors": errors + [f"Błąd przy inwersji macierzy: {e}"], "y": y.tolist()}
+        M_inv = pinv(M)
     cov_x = res_var * M_inv
     param_errors = np.sqrt(np.diag(cov_x))
     y_est = A_wysokie @ x_nnls
@@ -553,42 +556,7 @@ class MainApplication(tk.Tk):
             for err in results["errors"]:
                 self.text_results.insert(tk.END, f"  - {err}\n")
         
-        # Jeśli analiza NNLS nie została wykonana, wyświetlamy przynajmniej dane eksperymentalne (jeśli są dostępne)
-        if "x_nnls" not in results:
-            self.text_results.insert(tk.END, "\nAnaliza nie mogła być wykonana z powodu brakujących lub nieprawidłowych danych.\n")
-            if "y" in results and results["y"]:
-                y_all = np.array(results["y"])
-                plt.figure(figsize=(8,4))
-                plt.plot(y_all, 'o-', label="Dane eksperymentalne")
-                plt.title("Dane eksperymentalne")
-                plt.xlabel("Numer pomiaru")
-                plt.ylabel("Zliczenia")
-                plt.legend()
-                plt.grid(True)
-                plt.tight_layout()
-                plt.show()
-            return
-        
-        self.text_results.insert(tk.END, f"\nRozmiar A: {results['A_wysokie_shape']}\n")
-        self.text_results.insert(tk.END, f"Rozmiar y: {results['y_shape']}\n")
-        self.text_results.insert(tk.END, "Parametry (NNLS):\n")
-        self.text_results.insert(tk.END, f"{results['x_nnls']}\n")
-        self.text_results.insert(tk.END, "Błędy parametrów:\n")
-        self.text_results.insert(tk.END, f"{results['param_errors']}\n")
-        self.text_results.insert(tk.END, f"Chi2: {results['chi2']}\n\n")
-        for i, met in enumerate(results["detector_metrics"]):
-            self.text_results.insert(tk.END, f"Detektor {results['detector_names'][i]}:\n")
-            self.text_results.insert(tk.END, f"  aFactor:\t\t\t\t\t\t\t{met['aFactor']:.4e}\n")
-            self.text_results.insert(tk.END, f"  RMSE -  Root Mean Squared Error:\t\t\t\t\t\t\t{met['RMSE']:.4e}\n")
-            self.text_results.insert(tk.END, f"  MAE - Mean Absolute Error:\t\t\t\t\t\t\t{met['MAE']:.4e}\n")
-            self.text_results.insert(tk.END, f"  R2 - Współczynnik determinacji:\t\t\t\t\t\t\t{met['R2']:.4e}\n")
-            self.text_results.insert(tk.END, f"  Pearson - Współczynnik korelacji Pearsona:\t\t\t\t\t\t\t{met['Pearson']:.4e}\n\n")
-        self.text_results.insert(tk.END, "Oszacowane aktywności (dla poszczególnych izotopów):\n")
-        isotopy = [iso.strip() for iso in self.detectors[0]["isotopy"].split(",")]
-        for j in range(len(isotopy)):
-            for k, (act, err) in enumerate(zip(results["x_nnls"][16*j:16*(j+1)], results["param_errors"][16*j:16*(j+1)])):
-                self.text_results.insert(tk.END, f"Źródło {k+1} - {isotopy[j]}: {act:.2e} ± {err:.2e}\n")
-        
+                
         # Funkcja pomocnicza, która dobiera układ subplotów
         def get_subplot_grid(n):
             if n == 1:
@@ -624,6 +592,55 @@ class MainApplication(tk.Tk):
             rows_scheme, cols_scheme = get_subplot_grid(num_scheme)
             fig3, axs3 = plt.subplots(rows_scheme, cols_scheme, figsize=(8 * cols_scheme, 4 * rows_scheme))
             axs3 = np.array(axs3).flatten()
+        
+        # Jeśli analiza NNLS nie została wykonana, wyświetlamy przynajmniej dane eksperymentalne (jeśli są dostępne)
+        if "x_nnls" not in results:
+            self.text_results.insert(tk.END, "\nAnaliza nie mogła być wykonana z powodu brakujących lub nieprawidłowych danych.\n")
+            if "y" in results and results["y"]:
+                y_all = np.array(results["y"])
+                plt.figure(figsize=(8,4))
+                plt.plot(y_all, 'o-', label="Dane eksperymentalne")
+                plt.title("Dane eksperymentalne")
+                plt.xlabel("Numer pomiaru")
+                plt.ylabel("Zliczenia")
+                plt.legend()
+                plt.grid(True)
+                plt.tight_layout()
+                plt.show()
+            if results["A_blocks"] and results["detector_has_scheme"]:
+                for i in range(num_detectors):
+                    if results["detector_has_scheme"][i]:
+                        ax3 = axs3[scheme_plot_index]
+                        A_block = results["A_blocks"][i]
+                        im = ax3.imshow(A_block, aspect='auto', interpolation='nearest')
+                        fig3.colorbar(im, ax=ax3)
+                        ax3.set_title(f"Macierz wydajności - {results['detector_names'][i]}")
+                        ax3.set_xlabel("Izotopy")
+                        ax3.set_ylabel("Pomiary")
+                        scheme_plot_index += 1
+                fig3.tight_layout()
+            return
+        
+        self.text_results.insert(tk.END, f"\nRozmiar A: {results['A_wysokie_shape']}\n")
+        self.text_results.insert(tk.END, f"Rozmiar y: {results['y_shape']}\n")
+        self.text_results.insert(tk.END, "Parametry (NNLS):\n")
+        self.text_results.insert(tk.END, f"{results['x_nnls']}\n")
+        self.text_results.insert(tk.END, "Błędy parametrów:\n")
+        self.text_results.insert(tk.END, f"{results['param_errors']}\n")
+        self.text_results.insert(tk.END, f"Chi2: {results['chi2']}\n\n")
+        for i, met in enumerate(results["detector_metrics"]):
+            self.text_results.insert(tk.END, f"Detektor {results['detector_names'][i]}:\n")
+            self.text_results.insert(tk.END, f"  aFactor:\t\t\t\t\t\t\t{met['aFactor']:.4e}\n")
+            self.text_results.insert(tk.END, f"  RMSE -  Root Mean Squared Error:\t\t\t\t\t\t\t{met['RMSE']:.4e}\n")
+            self.text_results.insert(tk.END, f"  MAE - Mean Absolute Error:\t\t\t\t\t\t\t{met['MAE']:.4e}\n")
+            self.text_results.insert(tk.END, f"  R2 - Współczynnik determinacji:\t\t\t\t\t\t\t{met['R2']:.4e}\n")
+            self.text_results.insert(tk.END, f"  Pearson - Współczynnik korelacji Pearsona:\t\t\t\t\t\t\t{met['Pearson']:.4e}\n\n")
+        self.text_results.insert(tk.END, "Oszacowane aktywności (dla poszczególnych izotopów):\n")
+        isotopy = [iso.strip() for iso in self.detectors[0]["isotopy"].split(",")]
+        for j in range(len(isotopy)):
+            for k, (act, err) in enumerate(zip(results["x_nnls"][16*j:16*(j+1)], results["param_errors"][16*j:16*(j+1)])):
+                self.text_results.insert(tk.END, f"Źródło {k+1} - {isotopy[j]}: {(act * nuclear_data[isotopy[j]]):.2e} ± {(err * nuclear_data[isotopy[j]]):.2e}\n")
+
 
         # Indeks dla subplotów macierzy wydajności
         scheme_plot_index = 0

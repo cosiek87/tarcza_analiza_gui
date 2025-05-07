@@ -1,0 +1,29 @@
+{
+    "general_params": {
+        "lam": 0.0005672978299613248,
+        "time_delay": 0.0,
+        "TOB": 0.0,
+        "intensity": 1,
+        "a": 5
+    },
+    "detectors": [
+        {
+            "name": "dol",
+            "A_file": ".\\pliki testowe\\test_piła_C11_N13\\30s.json",
+            "counts_file": ".\\pliki testowe\\test_piła_C11_N13\\dol_250kbq_30s.txt",
+            "n_measurements": 80,
+            "isotopy": "C11,N13",
+            "rotation_scheme_file": ".\\pliki testowe\\test_piła_C11_N13\\schemat_obrotow_30s.txt",
+            "rotation_times_file": ".\\pliki testowe\\test_piła_C11_N13\\schemat_krok\u00f3w_30.txt"
+        },
+        {
+            "name": "gora",
+            "A_file": ".\\pliki testowe\\test_piła_C11_N13\\A_gora_pojedyncze.txt",
+            "counts_file": ".\\pliki testowe\\test_piła_C11_N13\\gora_250kbq_30s.txt",
+            "n_measurements": 80,
+            "isotopy": "C11,N13",
+            "rotation_scheme_file": ".\\pliki testowe\\test_piła_C11_N13\\schemat_obrotow_30s.txt",
+            "rotation_times_file": ".\\pliki testowe\\test_piła_C11_N13\\schemat_krok\u00f3w_30.txt"
+        }
+    ]
+}
