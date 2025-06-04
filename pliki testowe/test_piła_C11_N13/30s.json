@@ -9,7 +9,7 @@
     "detectors": [
         {
             "name": "dol",
-            "A_file": ".\\pliki testowe\\test_piła_C11_N13\\30s.json",
+            "A_file": ".\\pliki testowe\\test_piła_C11_N13\\A_dol_pojedyncze.txt",
             "counts_file": ".\\pliki testowe\\test_piła_C11_N13\\dol_250kbq_30s.txt",
             "n_measurements": 80,
             "isotopy": "C11,N13",

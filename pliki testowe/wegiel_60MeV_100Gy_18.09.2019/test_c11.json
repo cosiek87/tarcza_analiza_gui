@@ -1,0 +1,47 @@
+{
+    "general_params": {
+        "lam": 0.0005672978299613248,
+        "time_delay": 479.4,
+        "TOB": 332.1,
+        "intensity": 1.99534,
+        "a": 5
+    },
+    "detectors": [
+        {
+            "name": "ssu",
+            "A_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\wyd_t8k_ssu.txt",
+            "counts_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\zliczenia_t8k_ssu.txt",
+            "n_measurements": 80,
+            "isotopy": "C11",
+            "rotation_scheme_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\schemat_obrotow.txt",
+            "rotation_times_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\czas_obrotow_t8k.txt"
+        },
+        {
+            "name": "xp",
+            "A_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\wyd_t8k_xp.txt",
+            "counts_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\zliczenia_t8k_xp.txt",
+            "n_measurements": 80,
+            "isotopy": "C11",
+            "rotation_scheme_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\schemat_obrotow.txt",
+            "rotation_times_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\czas_obrotow_t8k.txt"
+        },
+        {
+            "name": "caen_dol",
+            "A_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\wed_caen_dol_fixed.txt",
+            "counts_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\zliczenia_caen_dol.txt",
+            "n_measurements": 80,
+            "isotopy": "C11",
+            "rotation_scheme_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\schemat_obrotow.txt",
+            "rotation_times_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\czas_obrotow_caen.txt"
+        },
+        {
+            "name": "caen_gora",
+            "A_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\wed_caen_gora_fixed.txt",
+            "counts_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\zliczenia_caen_gora.txt",
+            "n_measurements": 80,
+            "isotopy": "C11",
+            "rotation_scheme_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\schemat_obrotow.txt",
+            "rotation_times_file": ".\\pliki testowe\\wegiel_60MeV_100Gy_18.09.2019\\czas_obrotow_caen.txt"
+        }
+    ]
+}
