@@ -98,7 +98,7 @@ def process_detector(det, general_params):
 
     # Alternatywna analiza eksponencjalna
     try:
-        alt_A0, alt_err = alternative_exponential_decay_fit(A_single_orig, cs, dt_list, t_starts, y_cor, y_err_cor, isotopy)
+        alt_A0, alt_err = alternative_exponential_decay_fit(A_single_orig, cs, dt_list, t_starts, y_cor, y_err_cor, isotopy, general_params["intensity"])
     except Exception as e:
         errors.append(f"Detektor {det.get('name','Unnamed')}: Błąd alternatywnej analizy eksponencjalnej - {e}")
         alt_A0, alt_err = None, None

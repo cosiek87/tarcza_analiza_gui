@@ -186,9 +186,7 @@ def plot_each_fit(A_single, cs, dt_list, t_starts, y, intensity, lam, tol=1e-6):
     plt.show()
 
 
-def alternative_exponential_decay_fit(
-    A_single, cs, dt_list, t_starts, y, u_y, lam, intensity=1.98
-):
+def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, lam, intensity=1.98):
     """
     Dla każdego źródła (slotu) dopasowuje model sumy funkcji zaniku promieniotwórczego
     dla n izotopów według wzoru:
@@ -205,7 +203,7 @@ def alternative_exponential_decay_fit(
     source_data = {s: {"t0": [], "dt": [], "y": [], "u_y": []} for s in range(n_sources)}
     A_single_arr = np.array(A_single)
     for i in range(m):
-        rolled = np.roll(A_single_arr, cs[i])
+        rolled = np.roll(A_single_arr, cs[i] + 1)
         s_measured = int(np.argmax(rolled))
         source_data[s_measured]["t0"].append(t_starts[i])
         source_data[s_measured]["dt"].append(dt_list[i])

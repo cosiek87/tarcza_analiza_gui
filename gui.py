@@ -247,6 +247,7 @@ class MainApplication(tk.Tk):
 
         # Lista izotopów – zakładamy, że jest taka sama dla wszystkich detektorów.
         isotopy = [iso.strip() for iso in self.detectors[0]["isotopy"].split(",")]
+        n_iso = len(isotopy)
 
         for i, (det_name, alt_A0, alt_err) in enumerate(alternatives):
             ax = axs[i]
@@ -268,6 +269,33 @@ class MainApplication(tk.Tk):
             ax.legend(fontsize=9)
             ax.grid(True)
 
+        alt_arr = np.stack([alt_A0 for (_, alt_A0, _) in alternatives], axis=0)
+        err_arr = np.stack([alt_err for (_, _, alt_err) in alternatives], axis=0)
+        # wagi i średnia ważona
+        w = 1.0 / (err_arr**2)
+        W_sum = np.sum(w, axis=0)              # kształt (n_iso, n_sources)
+        avg_alt = np.sum(alt_arr * w, axis=0) / W_sum
+        sigma_avg = np.sqrt(1.0 / W_sum)
+
+        # wykres agregowany – jeden subplot na izotop
+        fig_aggr, axs_aggr = plt.subplots(n_iso, 1, figsize=(8, 3*n_iso))
+        if n_iso == 1:
+            axs_aggr = [axs_aggr]
+        for j, iso in enumerate(isotopy):
+            ax = axs_aggr[j]
+            sources = np.arange(1, avg_alt.shape[1] + 1)
+            # alternatywna średnia
+            ax.errorbar(sources, avg_alt[j], yerr=sigma_avg[j],
+                        fmt='o-', capsize=5, color='blue', label='Alt avg')
+            # NNLS (skalowane)
+            nnls_vals = np.array(x_nnls[16*j:16*(j+1)]) * nuclear_data[iso]
+            ax.plot(sources, nnls_vals, 's--', color='red', 
+                    markersize=6, label='NNLS')
+            ax.set_title(f"Izotop {iso} – średnia alt vs NNLS")
+            ax.set_xlabel("Źródło (slot)")
+            ax.set_ylabel("Aktywność [Bq]")
+            ax.legend()
+            ax.grid(True)
         plt.tight_layout()
         plt.show()
     
