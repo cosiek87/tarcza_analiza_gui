@@ -228,7 +228,7 @@ def alternative_exponential_decay_fit(
         result = np.zeros_like(t0)
         for j in range(n_iso):
             lambda_j = nuclear_data[lam[j]]
-            result += A0_params[j] * (1 - np.exp(-lambda_j * dt)) * np.exp(-lambda_j * t0) * max(A_single)
+            result += A0_params[j] * (1 - np.exp(-lambda_j * dt)) * np.exp(-lambda_j * t0) * max(A_single) * intensity
         return result
 
     for s in range(n_sources):
