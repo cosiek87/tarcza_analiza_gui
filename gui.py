@@ -182,6 +182,10 @@ class MainApplication(tk.Tk):
         self.entry_TOB = ttk.Entry(frame_params, width=15)
         self.entry_TOB.grid(row=0, column=3, padx=5, pady=2)
         self.entry_TOB.insert(0, str(self.general_params["TOB"]))
+
+        self.exp_analysis = tk.BooleanVar(value=self.general_params.get("exp_analysis", True))
+        ttk.Checkbutton(frame_params, text="Dodatkowa analiza za pomocą eksponensów",
+                        variable=self.exp_analysis).grid(row=0, column=4, padx=5, pady=2)
         
         # Frame for detectors list with scrollbar
         frame_detectors = ttk.LabelFrame(self, text="Detektory")
@@ -318,6 +322,7 @@ class MainApplication(tk.Tk):
         try:
             self.general_params["time_delay"] = float(self.entry_time_delay.get())
             self.general_params["TOB"] = float(self.entry_TOB.get())
+            self.general_params["exp_analysis"] = self.exp_analysis.get()
         except Exception as e:
             messagebox.showerror("Błąd", f"Błąd przy wczytywaniu parametrów ogólnych: {e}")
             return
@@ -408,11 +413,12 @@ class MainApplication(tk.Tk):
                                                 results["param_errors"][16*j:16*(j+1)])):
                 self.text_results.insert(tk.END, f"Źródło {k+1} - {iso}: {(act * nuclear_data[iso]):.2e} ± {(err * nuclear_data[iso]):.2e}\n")
 
-        self.text_results.insert(tk.END, "\nAlternatywna analiza eksponencjalna (A0 w Bq) dla kolejnych źródeł:\n")
-        for (det_name, alt_A0, alt_err) in results["alt_results"]:
-            for j, iso in enumerate(isotopy):
-                for s in range(16):
-                    self.text_results.insert(tk.END, f"  {det_name} - Izotop {iso}, Źródło {s+1}: {alt_A0[j][s]:.2e} ± {alt_err[j][s]:.2e} Bq\n")
+        if self.general_params.get("exp_analysis", False):
+            self.text_results.insert(tk.END, "\nAlternatywna analiza eksponencjalna (A0 w Bq) dla kolejnych źródeł:\n")
+            for (det_name, alt_A0, alt_err) in results["alt_results"]:
+                for j, iso in enumerate(isotopy):
+                    for s in range(16):
+                        self.text_results.insert(tk.END, f"  {det_name} - Izotop {iso}, Źródło {s+1}: {alt_A0[j][s]:.2e} ± {alt_err[j][s]:.2e} Bq\n")
 
         # Wykresy: dane vs. model oraz scatter
         index_start = 0
@@ -464,8 +470,8 @@ class MainApplication(tk.Tk):
         fig2.tight_layout()
         if fig3:
             fig3.tight_layout()
-
-        self.show_alternative_analysis(results["alt_results"], results["x_nnls"])
+        if self.general_params.get("exp_analysis", False):
+            self.show_alternative_analysis(results["alt_results"], results["x_nnls"])
         plt.show()
     
     def save_project(self):
@@ -495,6 +501,7 @@ class MainApplication(tk.Tk):
                 self.entry_time_delay.insert(0, str(self.general_params["time_delay"]))
                 self.entry_TOB.delete(0, tk.END)
                 self.entry_TOB.insert(0, str(self.general_params["TOB"]))
+                self.exp_analysis.set(self.general_params.get("exp_analysis", True))
                 self.update_detectors_listbox()
                 messagebox.showinfo("Sukces", "Projekt wczytany.")
             except Exception as e:
