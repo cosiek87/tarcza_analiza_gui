@@ -171,7 +171,7 @@ def plot_each_fit(A_single, cs, dt_list, t_starts, y, intensity, lam, tol=1e-6):
                 F_fit = np.linspace(F_arr.min(), F_arr.max(), 100)
                 y_fit = model(F_fit, A0_val)
                 ax.plot(F_arr, y_arr, 'bo', label='Dane')
-                ax.plot(F_fit, y_fit, 'r-', label=f'Fit: A0={A0_val:.2e}')
+                ax.plot(F_fit, y_fit, 'ro', label=f'Fit: A0={A0_val:.2e}')
             except Exception as e:
                 ax.text(0.5, 0.5, f"Błąd fit: {e}", transform=ax.transAxes, ha='center')
             ax.set_title(f"Slot {s+1}")
@@ -186,7 +186,7 @@ def plot_each_fit(A_single, cs, dt_list, t_starts, y, intensity, lam, tol=1e-6):
     plt.show()
 
 
-def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, lam, intensity=1.98):
+def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, lam, intensity=1.99):
     """
     Dla każdego źródła (slotu) dopasowuje model sumy funkcji zaniku promieniotwórczego
     dla n izotopów według wzoru:
@@ -257,12 +257,12 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
                 var_j = pcov[j, j]
                 fitted_A0_err[j][s] = math.sqrt(var_j) * nuclear_data[lam[j]] if var_j > 0 else 0.0
 
-            sort_idx = np.argsort(t0_arr)
-            t0_sorted = t0_arr[sort_idx]
-            dt_sorted = dt_arr[sort_idx]
-            y_model = model_func((t0_sorted, dt_sorted), *popt)
+            t0_fine = np.linspace(t0_arr.min(), t0_arr.max(), 300)
+            # Interpolujemy dt_fine na podstawie t0_arr i odpowiadających im dt_arr
+            dt_fine = np.interp(t0_fine, t0_arr, dt_arr)
+            y_model = model_func((t0_fine, dt_fine), *popt)
             ax.errorbar(t0_arr, y_arr, yerr=uy_arr, fmt='o', color='blue', label='Dane')
-            ax.plot(t0_sorted, y_model, 'r-', label="Fit")
+            ax.plot(t0_fine, y_model, 'r-', label="Fit")
             legend_text = "\n".join([f"Iso{j+1}: A₀={popt[j]:.2e}±{fitted_A0_err[j][s]:.2e}" for j in range(n_iso)])
             ax.text(0.05, 0.95, legend_text, transform=ax.transAxes, va="top", fontsize=7, bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.7))
         except Exception as e:
@@ -273,7 +273,7 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
         ax.legend(fontsize=8)
         ax.grid(True)
     plt.tight_layout()
-    plt.show()
+    # plt.show()
 
     print("Wyniki dopasowania A₀ (λ znane) dla kolejnych izotopów i slotów:")
     for j in range(n_iso):

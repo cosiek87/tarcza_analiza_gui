@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,82 +25,98 @@ class DetectorDialog(tk.Toplevel):
     def __init__(self, master, detector=None):
         super().__init__(master)
         self.title("Dodaj/Edytuj detektor")
-        self.geometry("800x300")
+        self.geometry("600x350")
+        self.resizable(False, False)
         self.detector = detector
         self.result = None
         self.create_widgets()
         if detector:
             self.populate_fields(detector)
         else:
-            default_isotopy = "C11"
-            self.entry_isotopy.insert(0, default_isotopy)
+            self.entry_isotopy.insert(0, "C11")
 
     def create_widgets(self):
-        r = 0
-        tk.Label(self, text="Nazwa:").grid(row=r, column=0, sticky="e")
-        self.entry_name = tk.Entry(self, width=100)
-        self.entry_name.grid(row=r, column=1, columnspan=2)
-        r += 1
-        tk.Label(self, text="Plik A (wydajność):").grid(row=r, column=0, sticky="e")
-        self.entry_A_file = tk.Entry(self, width=100)
-        self.entry_A_file.grid(row=r, column=1)
-        tk.Button(self, text="Przeglądaj", command=self.browse_A_file).grid(row=r, column=2)
-        r += 1
-        tk.Label(self, text="Plik zliczeń:").grid(row=r, column=0, sticky="e")
-        self.entry_counts_file = tk.Entry(self, width=100)
-        self.entry_counts_file.grid(row=r, column=1)
-        tk.Button(self, text="Przeglądaj", command=self.browse_counts_file).grid(row=r, column=2)
-        r += 1
-        tk.Label(self, text="Liczba pomiarów:").grid(row=r, column=0, sticky="e")
-        self.entry_n_meas = tk.Entry(self, width=30)
-        self.entry_n_meas.grid(row=r, column=1, columnspan=2)
-        r += 1
-        tk.Label(self, text="Izotopy (przecinek):").grid(row=r, column=0, sticky="e")
-        self.entry_isotopy = tk.Entry(self, width=100)
-        self.entry_isotopy.grid(row=r, column=1, columnspan=2)
-        # Usunięto niekondycjonalne ustawianie "C11" – teraz wartość domyślna jest ustawiana w __init__
-        r += 1
-        tk.Label(self, text="Plik schematu rotacji:").grid(row=r, column=0, sticky="e")
-        self.entry_rot_scheme = tk.Entry(self, width=100)
-        self.entry_rot_scheme.grid(row=r, column=1)
-        tk.Button(self, text="Przeglądaj", command=self.browse_rot_scheme).grid(row=r, column=2)
-        r += 1
-        tk.Label(self, text="Plik kroków rotacji:").grid(row=r, column=0, sticky="e")
-        self.entry_steps_scheme = tk.Entry(self, width=100)
-        self.entry_steps_scheme.grid(row=r, column=1)
-        tk.Button(self, text="Przeglądaj", command=self.browse_steps_scheme).grid(row=r, column=2)
-        r += 1
-        tk.Button(self, text="OK", command=self.on_ok).grid(row=r, column=0, pady=10)
-        tk.Button(self, text="Anuluj", command=self.destroy).grid(row=r, column=1, pady=10)
-    
+        frm = ttk.Frame(self, padding=20)
+        frm.pack(fill="both", expand=True)
+
+        # Define common options
+        label_opts = {"anchor": "e", "padding": (5, 5)}
+        entry_opts = {"width": 40}
+        btn_opts = {"padding": (2, 2)}
+
+        # Row 0: Nazwa
+        ttk.Label(frm, text="Nazwa:", **label_opts).grid(row=0, column=0, sticky="e")
+        self.entry_name = ttk.Entry(frm, **entry_opts)
+        self.entry_name.grid(row=0, column=1, columnspan=2, sticky="w", padx=5, pady=5)
+
+        # Row 1: Plik A (wydajność)
+        ttk.Label(frm, text="Plik A (wydajność):", **label_opts).grid(row=1, column=0, sticky="e")
+        self.entry_A_file = ttk.Entry(frm, width=50)
+        self.entry_A_file.grid(row=1, column=1, sticky="w", padx=5, pady=5)
+        ttk.Button(frm, text="Przeglądaj", command=self.browse_A_file, **btn_opts).grid(row=1, column=2, padx=5, pady=5)
+
+        # Row 2: Plik zliczeń
+        ttk.Label(frm, text="Plik zliczeń:", **label_opts).grid(row=2, column=0, sticky="e")
+        self.entry_counts_file = ttk.Entry(frm, width=50)
+        self.entry_counts_file.grid(row=2, column=1, sticky="w", padx=5, pady=5)
+        ttk.Button(frm, text="Przeglądaj", command=self.browse_counts_file, **btn_opts).grid(row=2, column=2, padx=5, pady=5)
+
+        # Row 3: Liczba pomiarów
+        ttk.Label(frm, text="Liczba pomiarów:", **label_opts).grid(row=3, column=0, sticky="e")
+        self.entry_n_meas = ttk.Entry(frm, width=20)
+        self.entry_n_meas.grid(row=3, column=1, sticky="w", padx=5, pady=5)
+
+        # Row 4: Izotopy
+        ttk.Label(frm, text="Izotopy (przecinek):", **label_opts).grid(row=4, column=0, sticky="e")
+        self.entry_isotopy = ttk.Entry(frm, width=50)
+        self.entry_isotopy.grid(row=4, column=1, columnspan=2, sticky="w", padx=5, pady=5)
+
+        # Row 5: Plik schematu rotacji
+        ttk.Label(frm, text="Plik schematu rotacji:", **label_opts).grid(row=5, column=0, sticky="e")
+        self.entry_rot_scheme = ttk.Entry(frm, width=50)
+        self.entry_rot_scheme.grid(row=5, column=1, sticky="w", padx=5, pady=5)
+        ttk.Button(frm, text="Przeglądaj", command=self.browse_rot_scheme, **btn_opts).grid(row=5, column=2, padx=5, pady=5)
+
+        # Row 6: Plik kroków rotacji
+        ttk.Label(frm, text="Plik kroków rotacji:", **label_opts).grid(row=6, column=0, sticky="e")
+        self.entry_steps_scheme = ttk.Entry(frm, width=50)
+        self.entry_steps_scheme.grid(row=6, column=1, sticky="w", padx=5, pady=5)
+        ttk.Button(frm, text="Przeglądaj", command=self.browse_steps_scheme, **btn_opts).grid(row=6, column=2, padx=5, pady=5)
+
+        # Row 7: Przyciski OK / Anuluj
+        btn_frame = ttk.Frame(frm)
+        btn_frame.grid(row=7, column=0, columnspan=3, pady=15)
+        ttk.Button(btn_frame, text="OK", command=self.on_ok, width=12).grid(row=0, column=0, padx=10)
+        ttk.Button(btn_frame, text="Anuluj", command=self.destroy, width=12).grid(row=0, column=1, padx=10)
+
     def browse_A_file(self):
-        filename = filedialog.askopenfilename(title="Wybierz plik A", 
+        filename = filedialog.askopenfilename(title="Wybierz plik A",
                                               filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
         if filename:
             self.entry_A_file.delete(0, tk.END)
             self.entry_A_file.insert(0, filename)
-    
+
     def browse_counts_file(self):
-        filename = filedialog.askopenfilename(title="Wybierz plik zliczeń", 
+        filename = filedialog.askopenfilename(title="Wybierz plik zliczeń",
                                               filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
         if filename:
             self.entry_counts_file.delete(0, tk.END)
             self.entry_counts_file.insert(0, filename)
-    
+
     def browse_rot_scheme(self):
-        filename = filedialog.askopenfilename(title="Wybierz plik schematu rotacji", 
+        filename = filedialog.askopenfilename(title="Wybierz plik schematu rotacji",
                                               filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
         if filename:
             self.entry_rot_scheme.delete(0, tk.END)
             self.entry_rot_scheme.insert(0, filename)
-    
+
     def browse_steps_scheme(self):
-        filename = filedialog.askopenfilename(title="Wybierz plik kroków rotacji", 
+        filename = filedialog.askopenfilename(title="Wybierz plik kroków rotacji",
                                               filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
         if filename:
             self.entry_steps_scheme.delete(0, tk.END)
             self.entry_steps_scheme.insert(0, filename)
-    
+
     def populate_fields(self, detector):
         self.entry_name.insert(0, detector["name"])
         self.entry_A_file.insert(0, detector["A_file"])
@@ -109,7 +125,7 @@ class DetectorDialog(tk.Toplevel):
         self.entry_isotopy.insert(0, detector.get("isotopy", ""))
         self.entry_rot_scheme.insert(0, detector.get("rotation_scheme_file", ""))
         self.entry_steps_scheme.insert(0, detector.get("rotation_times_file", ""))
-    
+
     def on_ok(self):
         try:
             name = self.entry_name.get()
@@ -140,7 +156,7 @@ class MainApplication(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Analiza danych eksperymentalnych")
-        self.geometry("1400x1000")  # Duże okno
+        self.geometry("1400x1000")
         self.general_params = {
             "lam": 0.0005672978299613248,
             "time_delay": 479.4,
@@ -153,42 +169,41 @@ class MainApplication(tk.Tk):
         self.create_menu()
     
     def create_widgets(self):
-        frame_params = tk.LabelFrame(self, text="Parametry ogólne")
+        # Frame for general parameters with a grid layout for consistent alignment
+        frame_params = ttk.LabelFrame(self, text="Parametry ogólne")
         frame_params.pack(fill="x", padx=10, pady=5)
-        tk.Label(frame_params, text="lam:").grid(row=0, column=0, sticky="e")
-        self.entry_lam = tk.Entry(frame_params, width=15)
-        self.entry_lam.grid(row=0, column=1, padx=5, pady=2)
-        self.entry_lam.insert(0, str(self.general_params["lam"]))
-        tk.Label(frame_params, text="Time delay:").grid(row=0, column=2, sticky="e")
-        self.entry_time_delay = tk.Entry(frame_params, width=15)
-        self.entry_time_delay.grid(row=0, column=3, padx=5, pady=2)
-        self.entry_time_delay.insert(0, str(self.general_params["time_delay"]))
-        tk.Label(frame_params, text="TOB:").grid(row=0, column=4, sticky="e")
-        self.entry_TOB = tk.Entry(frame_params, width=15)
-        self.entry_TOB.grid(row=0, column=5, padx=5, pady=2)
-        self.entry_TOB.insert(0, str(self.general_params["TOB"]))
-        tk.Label(frame_params, text="Intensity:").grid(row=1, column=0, sticky="e")
-        self.entry_intensity = tk.Entry(frame_params, width=15)
-        self.entry_intensity.grid(row=1, column=1, padx=5, pady=2)
-        self.entry_intensity.insert(0, str(self.general_params["intensity"]))
         
-        frame_detectors = tk.LabelFrame(self, text="Detektory")
+        ttk.Label(frame_params, text="Time delay:").grid(row=0, column=0, sticky="e", padx=5, pady=2)
+        self.entry_time_delay = ttk.Entry(frame_params, width=15)
+        self.entry_time_delay.grid(row=0, column=1, padx=5, pady=2)
+        self.entry_time_delay.insert(0, str(self.general_params["time_delay"]))
+        
+        ttk.Label(frame_params, text="TOB:").grid(row=0, column=2, sticky="e", padx=5, pady=2)
+        self.entry_TOB = ttk.Entry(frame_params, width=15)
+        self.entry_TOB.grid(row=0, column=3, padx=5, pady=2)
+        self.entry_TOB.insert(0, str(self.general_params["TOB"]))
+        
+        # Frame for detectors list with scrollbar
+        frame_detectors = ttk.LabelFrame(self, text="Detektory")
         frame_detectors.pack(fill="both", expand=True, padx=10, pady=5)
+        
         self.detectors_listbox = tk.Listbox(frame_detectors)
         self.detectors_listbox.pack(side="left", fill="both", expand=True, padx=5, pady=5)
         self.detectors_listbox.bind("<Double-Button-1>", self.edit_detector)
-        scrollbar = tk.Scrollbar(frame_detectors, orient="vertical", command=self.detectors_listbox.yview)
-        scrollbar.pack(side="right", fill="y")
+        scrollbar = ttk.Scrollbar(frame_detectors, orient="vertical", command=self.detectors_listbox.yview)
+        scrollbar.pack(side="right", fill="y", padx=5, pady=5)
         self.detectors_listbox.config(yscrollcommand=scrollbar.set)
         
-        frame_buttons = tk.Frame(self)
+        # Frame for action buttons
+        frame_buttons = ttk.Frame(self)
         frame_buttons.pack(fill="x", padx=10, pady=5)
-        tk.Button(frame_buttons, text="Dodaj detektor", command=self.add_detector).pack(side="left", padx=5)
-        tk.Button(frame_buttons, text="Edytuj detektor", command=self.edit_detector).pack(side="left", padx=5)
-        tk.Button(frame_buttons, text="Usuń detektor", command=self.remove_detector).pack(side="left", padx=5)
-        tk.Button(frame_buttons, text="Uruchom analizę", command=self.run_analysis).pack(side="right", padx=5)
+        ttk.Button(frame_buttons, text="Dodaj detektor", command=self.add_detector).pack(side="left", padx=5)
+        ttk.Button(frame_buttons, text="Edytuj detektor", command=self.edit_detector).pack(side="left", padx=5)
+        ttk.Button(frame_buttons, text="Usuń detektor", command=self.remove_detector).pack(side="left", padx=5)
+        ttk.Button(frame_buttons, text="Uruchom analizę", command=self.run_analysis).pack(side="right", padx=5)
         
-        frame_results = tk.LabelFrame(self, text="Wyniki analizy")
+        # Frame for displaying analysis results
+        frame_results = ttk.LabelFrame(self, text="Wyniki analizy")
         frame_results.pack(fill="both", expand=True, padx=10, pady=5)
         self.text_results = tk.Text(frame_results, wrap="word")
         self.text_results.pack(fill="both", expand=True, padx=5, pady=5)
@@ -301,10 +316,8 @@ class MainApplication(tk.Tk):
     
     def run_analysis(self):
         try:
-            self.general_params["lam"] = float(self.entry_lam.get())
             self.general_params["time_delay"] = float(self.entry_time_delay.get())
             self.general_params["TOB"] = float(self.entry_TOB.get())
-            self.general_params["intensity"] = float(self.entry_intensity.get())
         except Exception as e:
             messagebox.showerror("Błąd", f"Błąd przy wczytywaniu parametrów ogólnych: {e}")
             return
@@ -478,14 +491,10 @@ class MainApplication(tk.Tk):
                     project = json.load(f)
                 self.general_params = project.get("general_params", self.general_params)
                 self.detectors = project.get("detectors", [])
-                self.entry_lam.delete(0, tk.END)
-                self.entry_lam.insert(0, str(self.general_params["lam"]))
                 self.entry_time_delay.delete(0, tk.END)
                 self.entry_time_delay.insert(0, str(self.general_params["time_delay"]))
                 self.entry_TOB.delete(0, tk.END)
                 self.entry_TOB.insert(0, str(self.general_params["TOB"]))
-                self.entry_intensity.delete(0, tk.END)
-                self.entry_intensity.insert(0, str(self.general_params["intensity"]))
                 self.update_detectors_listbox()
                 messagebox.showinfo("Sukces", "Projekt wczytany.")
             except Exception as e:

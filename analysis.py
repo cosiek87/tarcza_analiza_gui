@@ -1,7 +1,7 @@
 import numpy as np
-from numpy.linalg import inv, pinv
 from scipy.optimize import nnls
 from utils import build_A_matrix, correct_counts, alternative_exponential_decay_fit, nuclear_data
+import matplotlib.pyplot as plt
 from metrics import aFactor, compute_rmse, compute_mae, compute_r2, compute_pearson
 from tkinter import messagebox
 
@@ -153,7 +153,9 @@ def run_analysis(general_params, detectors):
 
         # Zapis wyników alternatywnej analizy
         alt_results.append((det["name"], det_result["alt_A0"], det_result["alt_err"]))
-
+    
+    plt.show()
+    
     if not big_A_list:
         return {"errors": total_errors, "y": []}
 
@@ -180,9 +182,9 @@ def run_analysis(general_params, detectors):
     res_var = chi2 / (N - k) if N > k else chi2
     M = Aw.T @ Aw
     try:
-        M_inv = inv(M)
+        M_inv = np.linalg.inv(M)
     except Exception:
-        M_inv = pinv(M)
+        M_inv = np.linalg.pinv(M)
     cov_x = res_var * M_inv
     param_errors = np.sqrt(np.diag(cov_x))
     y_est = A_wysokie @ x_nnls
