@@ -23,16 +23,66 @@ Program **"Analiza sąsiadów"** to narzędzie oparte na interfejsie graficznym 
 
 ### 1. Wczytywanie Danych i Konfiguracja
 - **Wczytywanie plików:**  
-  Program odczytuje:
-  - Plik z macierzą wydajności (plik A) – zawiera efektywności poszczególnych izotopów.
-  - Plik zliczeń – dane eksperymentalne z przypisanymi błędami.
-  - Opcjonalne pliki ze schematem rotacji i czasami rotacji, które umożliwiają ustalenie przesunięć tarczy oraz określenie czasu trwania pomiarów.
+  Program zaczytuje dla każdego detektora po zestawie danych:
+  - **Plik A (wydajność)** – zawiera wydajność pomiarową dla analizowanej lini gamma uwzględniając pozycję detektora względem pierwszej próbki. Np.:
+      ```0.0261789
+      0.000510917
+      0.000131826
+      6.85833E-05
+      3.99793E-05
+      3.42357E-05
+      2.44325E-05
+      1.66365E-05
+      9.9783E-06
+      2.05225E-05
+      2.49699E-05
+      2.8371E-05
+      3.48395E-05
+      6.99403E-05
+      0.000127072
+      0.000504856
+  - **Plik zliczeń** – dane eksperymentalne z przypisanymi błędami. Tj pary Liczba zliczeń - błąd np.:
+      ```19023.5	151.458
+      16139.6	140.722
+      2760.75	71.7
+      2428.1	71.0127
+      10183.9	118.327
+  - **Liczbę pomiarów** - którą można sterować zakres danych jaki ma być analizowany (tylko od końca)
+  - **Plik schematu rotacji:** - dane umożliwiają ustalenie przesunięć tarczy. Np.:
+    ```0	30
+    1	30
+    1	30
+    1	30
+    1	30
+    1	30
+    1	30
+    1	30
+    1	30
+    1	30
+    1	30
+    1	30
+  - **Plik kroków rotacji:** dane które umożliwiają określenie czasu trwania każdego z pomiarów. Jednostka może być w sekundach lub w ps (pikosekundu - zapis z CAEN)
+    ```0
+    4.305272481749000000e+12
+    4.964063975999000000e+12
+    1.230048931887400000e+13
+    1.297626662562400000e+13
+    2.130103250062300000e+13
+    2.299597450199800000e+13
+    3.130827446456000000e+13
+    3.198405136874900000e+13
+    4.231174226599800000e+13
+    4.400668588799900000e+13
+    5.432592772374800000e+13
+    5.499837588587300000e+13
+    6.733044347156100000e+13
+    6.800621995974900000e+13
+    8.134397917937300000e+13
 - **Konfiguracja parametrów:**  
   W sekcji **Parametry ogólne** użytkownik ustawia m.in.:
-  - **lam:** Stała rozpadu (jeśli izotopy są zdefiniowane, program przypisuje odpowiednie wartości z wbudowanego słownika).
   - **Time delay:** Opóźnienie między startem a pierwszym pomiarem.
-  - **TOB:** Czas obserwacji.
-  - **Intensity:** Intensywność źródła.
+  - **TOB:** Czas obserwacji
+  - Opcja: **Dodatkowa analiza za pomocą eksponensów** - Oprócz rekonstrukcji opartej na NNLS, przeprowadzana jest analiza w oparci na analizie wprost za pomocą funkcji eksponencjalnych.
 
 ### 2. Dodawanie i Edytowanie Detektorów
 - **Dodawanie detektora:**  
