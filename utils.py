@@ -1,7 +1,7 @@
-import numpy as np
+from numpy import loadtxt, any, ndarray, zeros, float64, roll, exp, array, ceil, linspace, argmax, zeros_like, interp
 from scipy.optimize import curve_fit
-from matplotlib import pyplot as plt
-import math
+from matplotlib.pyplot import subplots, tight_layout, show
+from math import sqrt
 
 
 
@@ -29,7 +29,7 @@ def load_rotation_scheme(filename):
     Zwraca słownik: {"shifts": shifts, "dt": dt}.
     """
     try:
-        data = np.loadtxt(filename)
+        data = loadtxt(filename)
         shifts = data[:, 0].astype(int).tolist()
         dt = data[:, 1].tolist()
         return {"shifts": shifts, "dt": dt}
@@ -40,15 +40,15 @@ def load_rotation_scheme(filename):
 def load_rotation_times(filename):
     """
     Wczytuje plik z czasami rotacji.
-    Jeżeli pierwszy element jest bardzo duży (np. w pikosekundach) to przeskalowujemy.
+    Jeżeli pierwszy element jest bardzo duży ( w pikosekundach) to przeskalowujemy.
     Zwraca listę czasów.
     """
     try:
-        times = np.loadtxt(filename)
+        times = loadtxt(filename)
         # Jeśli skala jest bardzo duża, przeskaluj (przykładowa logika)
-        if np.any(times > 1e10):
+        if any(times > 1e10):
             times = times / 1e12
-        return times.tolist() if isinstance(times, np.ndarray) else times
+        return times.tolist() if isinstance(times, ndarray) else times
     except Exception as e:
         raise Exception(f"Błąd przy wczytywaniu pliku z czasami rotacji: {e}")
 
@@ -62,7 +62,7 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
     Parametry:
       A_single      - lista (o długości n_sources) wartości dla każdego źródła
       detector      - słownik zawierający ścieżki do plików schematu rotacji,
-                      np. klucze "rotation_scheme_file" oraz opcjonalnie "rotation_times_file"
+                       klucze "rotation_scheme_file" oraz opcjonalnie "rotation_times_file"
       general_params- słownik z parametrami ogólnymi (m.in. "intensity", "time_delay")
       lam_vector    - wektor stałych rozpadu (lista liczb) używanych do budowy A
       n_measurements- maksymalna liczba pomiarów do rozważenia (lub None)
@@ -109,16 +109,16 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
     
     # Budowa macierzy A
     n_iso = len(lam_vector)
-    A_mat = np.zeros((m, n_sources * n_iso), dtype=np.float64)
+    A_mat = zeros((m, n_sources * n_iso), dtype=float64)
     for i in range(m):
-        # Przesunięty wektor – wykorzystujemy np.roll z dodatkowym przesunięciem (+1)
-        rolled = np.roll(A_single, cs[i] + 1)
+        # Przesunięty wektor – wykorzystujemy roll z dodatkowym przesunięciem (+1)
+        rolled = roll(A_single, cs[i] + 1)
         dt_i = dt_list[i]
         for j, lam_val in enumerate(lam_vector):
             # Obliczamy czynnik skalujący dla konkretnej λ
-            factor = (1 - np.exp(-lam_val * dt_i)) * np.exp(-lam_val * t_starts[i]) * intensity
+            factor = (1 - exp(-lam_val * dt_i)) * exp(-lam_val * t_starts[i]) * intensity
             # Produkt element-po-elemencie – skalujemy cały wektor
-            A_mat[i, 16 * j:16 * (j + 1)] = np.array(rolled) * factor
+            A_mat[i, 16 * j:16 * (j + 1)] = array(rolled) * factor
     return A_mat, m, scheme, A_single, cs, dt_list, t_starts
 
 def correct_counts(y_raw, y_err, detector, general_params, m, scheme):
@@ -146,29 +146,29 @@ def plot_each_fit(A_single, cs, dt_list, t_starts, y, intensity, lam, tol=1e-6):
     m = len(dt_list)
     n_sources = len(A_single)
     ncols = 4
-    nrows = int(np.ceil(n_sources / ncols))
-    fig, axs = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3 * nrows))
+    nrows = int(ceil(n_sources / ncols))
+    fig, axs = subplots(nrows, ncols, figsize=(4 * ncols, 3 * nrows))
     axs = axs.flatten() if n_sources > 1 else [axs]
 
     for s in range(n_sources):
         F_list, y_list = [], []
         for i in range(m):
-            rolled = np.roll(A_single[::-1], cs[i] + 1)
+            rolled = roll(A_single[::-1], cs[i] + 1)
             if abs(rolled[s] - A_single[s]) < tol and A_single[s] > 0:
-                F_value = (1 - np.exp(-lam * dt_list[i])) * np.exp(-lam * t_starts[i]) * intensity * A_single[s]
+                F_value = (1 - exp(-lam * dt_list[i])) * exp(-lam * t_starts[i]) * intensity * A_single[s]
                 F_list.append(F_value)
                 y_list.append(y[i])
         ax = axs[s]
         if F_list:
-            F_arr = np.array(F_list)
-            y_arr = np.array(y_list)
+            F_arr = array(F_list)
+            y_arr = array(y_list)
             # Definicja modelu liniowego
             def model(F, A0): 
                 return A0 * F
             try:
                 popt, _ = curve_fit(model, F_arr, y_arr)
                 A0_val = popt[0]
-                F_fit = np.linspace(F_arr.min(), F_arr.max(), 100)
+                F_fit = linspace(F_arr.min(), F_arr.max(), 100)
                 y_fit = model(F_fit, A0_val)
                 ax.plot(F_arr, y_arr, 'bo', label='Dane')
                 ax.plot(F_fit, y_fit, 'ro', label=f'Fit: A0={A0_val:.2e}')
@@ -182,8 +182,8 @@ def plot_each_fit(A_single, cs, dt_list, t_starts, y, intensity, lam, tol=1e-6):
         else:
             ax.text(0.5, 0.5, "Brak danych", transform=ax.transAxes, ha='center')
             ax.set_title(f"Slot {s+1}")
-    plt.tight_layout()
-    plt.show()
+    tight_layout()
+    show()
 
 
 def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, lam, intensity=1.99):
@@ -201,10 +201,10 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
 
     # Grupowanie pomiarów dla poszczególnych slotów
     source_data = {s: {"t0": [], "dt": [], "y": [], "u_y": []} for s in range(n_sources)}
-    A_single_arr = np.array(A_single)
+    A_single_arr = array(A_single)
     for i in range(m):
-        rolled = np.roll(A_single_arr, cs[i] + 1)
-        s_measured = int(np.argmax(rolled))
+        rolled = roll(A_single_arr, cs[i] + 1)
+        s_measured = int(argmax(rolled))
         source_data[s_measured]["t0"].append(t_starts[i])
         source_data[s_measured]["dt"].append(dt_list[i])
         source_data[s_measured]["y"].append(y[i])
@@ -216,24 +216,24 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
 
     # Przygotowanie wykresów dla każdego slotu
     ncols = 4
-    nrows = int(np.ceil(n_sources / ncols))
-    fig, axs = plt.subplots(nrows, ncols, figsize=(4 * ncols, 3 * nrows))
+    nrows = int(ceil(n_sources / ncols))
+    fig, axs = subplots(nrows, ncols, figsize=(4 * ncols, 3 * nrows))
     axs = axs.flatten()
 
     # Model sumy funkcji zaniku dla n izotopów
     def model_func(x, *A0_params):
         t0, dt = x
-        result = np.zeros_like(t0)
+        result = zeros_like(t0)
         for j in range(n_iso):
             lambda_j = nuclear_data[lam[j]]
-            result += A0_params[j] * (1 - np.exp(-lambda_j * dt)) * np.exp(-lambda_j * t0) * max(A_single) * intensity
+            result += A0_params[j] * (1 - exp(-lambda_j * dt)) * exp(-lambda_j * t0) * max(A_single) * intensity
         return result
 
     for s in range(n_sources):
-        t0_arr = np.array(source_data[s]["t0"])
-        dt_arr = np.array(source_data[s]["dt"])
-        y_arr = np.array(source_data[s]["y"])
-        uy_arr = np.array(source_data[s]["u_y"])
+        t0_arr = array(source_data[s]["t0"])
+        dt_arr = array(source_data[s]["dt"])
+        y_arr = array(source_data[s]["y"])
+        uy_arr = array(source_data[s]["u_y"])
         ax = axs[s]
 
         if t0_arr.size == 0:
@@ -255,11 +255,11 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
                 # Skalujemy oszacowania przez odpowiednią stałą λ (nie wariancję, lecz odchylenie)
                 fitted_A0[j][s] = popt[j] * nuclear_data[lam[j]]
                 var_j = pcov[j, j]
-                fitted_A0_err[j][s] = math.sqrt(var_j) * nuclear_data[lam[j]] if var_j > 0 else 0.0
+                fitted_A0_err[j][s] = sqrt(var_j) * nuclear_data[lam[j]] if var_j > 0 else 0.0
 
-            t0_fine = np.linspace(t0_arr.min(), t0_arr.max(), 300)
+            t0_fine = linspace(t0_arr.min(), t0_arr.max(), 300)
             # Interpolujemy dt_fine na podstawie t0_arr i odpowiadających im dt_arr
-            dt_fine = np.interp(t0_fine, t0_arr, dt_arr)
+            dt_fine = interp(t0_fine, t0_arr, dt_arr)
             y_model = model_func((t0_fine, dt_fine), *popt)
             ax.errorbar(t0_arr, y_arr, yerr=uy_arr, fmt='o', color='blue', label='Dane')
             ax.plot(t0_fine, y_model, 'r-', label="Fit")
@@ -272,8 +272,8 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
         ax.set_ylabel("Zliczenia")
         ax.legend(fontsize=8)
         ax.grid(True)
-    plt.tight_layout()
-    # plt.show()
+    tight_layout()
+    # show()
 
     print("Wyniki dopasowania A₀ (λ znane) dla kolejnych izotopów i slotów:")
     for j in range(n_iso):
