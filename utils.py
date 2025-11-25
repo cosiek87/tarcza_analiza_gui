@@ -4,8 +4,6 @@ from matplotlib.pyplot import subplots, tight_layout, show
 from math import sqrt
 
 
-
-
 # =============================================================================
 # DANE JĄDROWE – przykładowy słownik z danymi (λ [1/s])
 # =============================================================================
@@ -14,7 +12,7 @@ nuclear_data = {
     "N13": 0.00115907,
     "O15": 0.00566,
     "F18": 0.000105277,
-    "Na22":  0.0000000084387,
+    "Na22": 0.0000000084387,
     # Dodaj kolejne izotopy w razie potrzeby
 }
 
@@ -53,12 +51,11 @@ def load_rotation_times(filename):
         raise Exception(f"Błąd przy wczytywaniu pliku z czasami rotacji: {e}")
 
 
-
 def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurements):
     """
     Buduje macierz A o rozmiarze (n_measurements, n_iso) – dla każdego pomiaru nakładamy
     przesuniętą wersję wektora A_single, skalowaną wektorem czynników zależnym od czasu oraz λ.
-    
+
     Parametry:
       A_single      - lista (o długości n_sources) wartości dla każdego źródła
       detector      - słownik zawierający ścieżki do plików schematu rotacji,
@@ -66,7 +63,7 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
       general_params- słownik z parametrami ogólnymi (m.in. "intensity", "time_delay")
       lam_vector    - wektor stałych rozpadu (lista liczb) używanych do budowy A
       n_measurements- maksymalna liczba pomiarów do rozważenia (lub None)
-    
+
     Zwraca:
       A_mat, m, scheme, A_single, cs, dt_list, t_starts
     """
@@ -80,13 +77,13 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
     # Upewniamy się, że lista dt ma odpowiednią długość
     if len(scheme["dt"]) < num_shifts:
         scheme["dt"] += [scheme["dt"][-1]] * (num_shifts - len(scheme["dt"]))
-    
+
     m_total = num_shifts
 
     # Wyznaczenie dt_list – w oparciu o plik z czasami roatacji lub schemat
     if "rotation_times_file" in detector and detector["rotation_times_file"]:
         rotation_times = load_rotation_times(detector["rotation_times_file"])
-        dt_list = [rotation_times[2 * i + 1] - rotation_times[2 * i] 
+        dt_list = [rotation_times[2 * i + 1] - rotation_times[2 * i]
                    for i in range((len(rotation_times) - 1) // 2)]
         m_file = len(dt_list)
         m = n_measurements if n_measurements is not None else m_file
@@ -106,7 +103,7 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
     t_starts = [time_delay]
     for i in range(1, m):
         t_starts.append(t_starts[i - 1] + dt_list[i - 1])
-    
+
     # Budowa macierzy A
     n_iso = len(lam_vector)
     A_mat = zeros((m, n_sources * n_iso), dtype=float64)
@@ -121,6 +118,7 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
             A_mat[i, 16 * j:16 * (j + 1)] = array(rolled) * factor
     return A_mat, m, scheme, A_single, cs, dt_list, t_starts
 
+
 def correct_counts(y_raw, y_err, detector, general_params, m, scheme):
     """
     Korekta zliczeń – mnoży przez czas pomiaru.
@@ -130,9 +128,9 @@ def correct_counts(y_raw, y_err, detector, general_params, m, scheme):
     y_cor = y_raw.copy()
     y_err_cor = y_err.copy()
     for i in range(m):
-        dt = scheme["dt"][i]
-        y_cor[i] #*= dt
-        y_err_cor[i] #*= dt
+        # dt = scheme["dt"][i]
+        y_cor[i]  # *= dt
+        y_err_cor[i]  # *= dt
     return y_cor, y_err_cor
 
 
@@ -163,7 +161,8 @@ def plot_each_fit(A_single, cs, dt_list, t_starts, y, intensity, lam, tol=1e-6):
             F_arr = array(F_list)
             y_arr = array(y_list)
             # Definicja modelu liniowego
-            def model(F, A0): 
+
+            def model(F, A0):
                 return A0 * F
             try:
                 popt, _ = curve_fit(model, F_arr, y_arr)
@@ -209,7 +208,7 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
         source_data[s_measured]["dt"].append(dt_list[i])
         source_data[s_measured]["y"].append(y[i])
         source_data[s_measured]["u_y"].append(u_y[i])
-    
+
     # Inicjalizacja wynikowych tablic
     fitted_A0 = [[0.0] * n_sources for _ in range(n_iso)]
     fitted_A0_err = [[0.0] * n_sources for _ in range(n_iso)]

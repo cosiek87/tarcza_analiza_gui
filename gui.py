@@ -191,6 +191,8 @@ class MainApplication(Tk):
         self.alpha0_var  = StringVar(value=str(self.general_params.get("alpha0", 1.0)))
         self.tau_var     = StringVar(value=str(self.general_params.get("tau", 25.0)))
         self.subsets_var = StringVar(value=str(self.general_params.get("subsets", 8)))
+        self.cov_cap_factor_var = StringVar(value=str(self.general_params.get("cov_cap_factor", 4.0)))
+
 
         self.create_widgets()
         self.create_menu()
@@ -269,6 +271,42 @@ class MainApplication(Tk):
         Label(frame_params, text="subsets:").grid(row=4, column=0, sticky="e", padx=5, pady=2)
         self.subsets_entry = Entry(frame_params, width=10, textvariable=self.subsets_var)
         self.subsets_entry.grid(row=4, column=1, sticky="w", padx=5, pady=2)
+
+        # --- cap factor parameter for covariance estimation ---
+        cap_factor_label = Label(frame_params, text="Cap factor:")
+        cap_factor_label.grid(row=4, column=2, sticky="e", padx=5, pady=2)
+    
+        # Add StringVar for cap_factor
+        self.cov_cap_factor_var = StringVar(value=str(self.general_params.get("cov_cap_factor", 4.0)))
+        self.cov_cap_factor_entry = Entry(frame_params, width=10, textvariable=self.cov_cap_factor_var)
+        self.cov_cap_factor_entry.grid(row=4, column=3, sticky="w", padx=5, pady=2)
+
+    
+        # Add tooltip functionality
+        def create_tooltip(widget, text):
+            def on_enter(event):
+                tooltip = Toplevel()
+                tooltip.wm_overrideredirect(True)
+                tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
+                label = Label(tooltip, text=text, background="lightyellow", 
+                            relief="solid", borderwidth=1, wraplength=300)
+                label.pack()
+                widget.tooltip = tooltip
+            
+            def on_leave(event):
+                if hasattr(widget, 'tooltip'):
+                    widget.tooltip.destroy()
+                    del widget.tooltip
+            
+            widget.bind("<Enter>", on_enter)
+            widget.bind("<Leave>", on_leave)
+        
+        # Add tooltip to cap factor label
+        create_tooltip(cap_factor_label, 
+                    "Maksymalna dopuszczalna kwadratowa reszta Pearsona - "
+                    "ogranicza wpływ pojedynczych obserwacji na oszacowanie "
+                    "kowariancji w metodach MLEM, zapobiegając niestabilności "
+                    "numerycznej przy dużych resztach.")
 
         # --- włączanie/wyłączanie kontrolek wariantu i parametrów zależnie od metody ---
         def _toggle_mlem_fields(*_):
@@ -407,6 +445,7 @@ class MainApplication(Tk):
             self.general_params["alpha0"]  = _safe_float(self.alpha0_var.get(), 1.0)
             self.general_params["tau"]     = _safe_float(self.tau_var.get(), 25.0)
             self.general_params["subsets"] = _safe_int(self.subsets_var.get(), 8)
+            self.general_params["cov_cap_factor"] = _safe_float(self.cov_cap_factor_var.get(), 4.0)
         except Exception as e:
             messagebox.showerror("Błąd", f"Błąd przy wczytywaniu parametrów ogólnych: {e}")
             return
@@ -691,6 +730,7 @@ class MainApplication(Tk):
                 self.alpha0_var.set(str(self.general_params.get("alpha0", 1.0)))
                 self.tau_var.set(str(self.general_params.get("tau", 25.0)))
                 self.subsets_var.set(str(self.general_params.get("subsets", 8)))
+                self.cov_cap_factor_var.set(str(self.general_params.get("cov_cap_factor", 4.0)))
                 self.update_detectors_listbox()
                 messagebox.showinfo("Sukces", "Projekt wczytany.")
             except Exception as e:
