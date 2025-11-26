@@ -1,11 +1,10 @@
-from numpy import loadtxt, vstack, hstack, diag, sum, sqrt, arange, maximum, ones_like, clip, zeros, asarray, inf, ones, log, zeros_like, minimum
+from numpy import loadtxt, vstack, hstack, diag, sum, sqrt, arange, maximum, ones_like, clip, zeros, asarray, ones, log, zeros_like, minimum
 from numpy.linalg import inv, pinv, norm
-from numpy.random import permutation
-from scipy.optimize import nnls
 from utils import build_A_matrix, correct_counts, alternative_exponential_decay_fit, nuclear_data
 from matplotlib.pyplot import show
 from metrics import aFactor, compute_rmse, compute_mae, compute_r2, compute_pearson
 from tkinter import messagebox
+
 
 def get_isotopy_and_lam(all_data, det, general_params):
     """
@@ -126,6 +125,7 @@ def process_detector(det, general_params):
     }
     return result, errors
 
+
 def analysis(general_params, detectors):
     big_A_list = []
     big_y_list = []
@@ -158,7 +158,7 @@ def analysis(general_params, detectors):
 
         # Zapis wyników alternatywnej analizy
         alt_results.append((det["name"], det_result["alt_A0"], det_result["alt_err"]))
-    
+
     show()
 
     if not big_A_list:
@@ -228,7 +228,7 @@ def analysis(general_params, detectors):
         cov_y_est = A_eff @ cov_x_red @ A_eff.T
         y_est_errors = sqrt(diag(cov_y_est))
 
-        poisson_deviance = float(dev)
+        # poisson_deviance = float(dev)
 
     # Wyliczenie metryk per detektor (bez zmian)
     metrics_all = []
@@ -304,7 +304,7 @@ def _solve_with_selected_method(A_full, y, y_sigma, general_params):
         b = zeros_like(y)
         if variant == "R-OS-SPS":
             alpha0 = float(general_params.get("alpha0", 1.0))
-            tau    = float(general_params.get("tau", 25.0))
+            tau = float(general_params.get("tau", 25.0))
             subsets = int(general_params.get("subsets", 8))
             x_red = relaxed_os_sps(A, y, x0=None, b=b,
                                    subsets=subsets, max_outer=int(general_params.get("max_iter", 200)),
@@ -332,8 +332,8 @@ def _solve_with_selected_method(A_full, y, y_sigma, general_params):
     return x, "NNLS", A, supp
 
 
+# Sekcja analizy Poissona #
 
-#### Sekcja analizy Poissona ####
 
 def _poisson_deviance(y, mu, eps=1e-12):
     """Deviance Poissona: 2 * sum( y*log(y/mu) - (y - mu) ), z definicją 0*log(0)=0."""
@@ -398,16 +398,20 @@ def _fisher_cov_poisson(A_eff, mu_hat, ridge=0.0, eps=1e-12):
     return H_inv
 
 # === support mask helpers (kolumny A) ===
+
+
 def _reduce_by_support(A, support_mask_bool):
     supp = asarray(support_mask_bool, dtype=bool)
     if supp.ndim != 1 or supp.shape[0] != A.shape[1]:
         raise ValueError("support_mask ma złą długość względem kolumn A.")
     return A[:, supp], supp
 
+
 def _expand_solution(x_reduced, supp, n_full):
     x_full = zeros(n_full, dtype=float)
     x_full[supp] = x_reduced
     return x_full
+
 
 def _make_full_support_mask(n_cols, n_sources, n_iso, mask_sources=None, mask_full=None):
     """Zwraca maskę bool długości n_cols.
@@ -426,21 +430,30 @@ def _make_full_support_mask(n_cols, n_sources, n_iso, mask_sources=None, mask_fu
         raise ValueError(f"mask_sources musi mieć długość {n_sources}, a ma {ms.size}.")
     return hstack([ms for _ in range(n_iso)])
 
+
 def _safe_div(a, b, eps=1e-12):
     return a / maximum(b, eps)
 
+
 # === MLEM init + subsety (jeśli nie masz) ===
+
+
 def init_x_mlem(A, y):
     return (A.T @ y) / maximum(A.T @ ones_like(y), 1e-12)
+
 
 def make_subsets(M, S):
     idx = arange(M)
     return [idx[s::S] for s in range(S)]
 
+
 # === Poisson log-like (do kontroli wzrostu) ===
+
+
 def _poisson_loglike(A, x, y, b=None, eps=1e-12):
     mu = A @ x + (0.0 if b is None else b)
     return float(sum(y * log(maximum(mu, eps)) - mu))
+
 
 def mlem(A, y, x0=None, b=None, max_iter=200, tol=1e-5, damping=1.0, l2=0.0, l1=0.0, callback=None):
     """
@@ -477,7 +490,10 @@ def mlem(A, y, x0=None, b=None, max_iter=200, tol=1e-5, damping=1.0, l2=0.0, l1=
 
     return x
 
+
 # === R-OS-SPS (relaxed Ordered-Subsets SPS) ===
+
+
 def relaxed_os_sps(A, y, x0=None, b=None,
                    subsets=8, max_outer=200,
                    alpha0=1.0, tau=25.0,
@@ -507,8 +523,8 @@ def relaxed_os_sps(A, y, x0=None, b=None,
         x_old_outer = x.copy()
 
         for s in order:
-            I = subs[s]
-            As, ys, bs = A[I, :], y[I], b[I]
+            subset = subs[s]
+            As, ys, bs = A[subset, :], y[subset], b[subset]
             mu = As @ x + bs
 
             # gradient subsetu

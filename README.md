@@ -82,7 +82,19 @@ Program **"Analiza sąsiadów"** to narzędzie oparte na interfejsie graficznym 
   W sekcji **Parametry ogólne** użytkownik ustawia m.in.:
   - **Time delay:** Opóźnienie między startem a pierwszym pomiarem.
   - **TOB:** Czas obserwacji
-  - Opcja: **Dodatkowa analiza za pomocą eksponensów** - Oprócz rekonstrukcji opartej na NNLS, przeprowadzana jest analiza w oparci na analizie wprost za pomocą funkcji eksponencjalnych.
+  - **Dodatkowa analiza za pomocą eksponensów:** Oprócz rekonstrukcji, przeprowadzana jest analiza wprost za pomocą funkcji eksponencjalnych.
+  - **Metoda dopasowania:**
+    - **NNLS (Non-Negative Least Squares):** Metoda minimalizująca błąd kwadratowy (Gauss). Szybka, dobra dla wysokiej statystyki.
+    - **MLEM (Maximum Likelihood Expectation Maximization):** Metoda iteracyjna (Poisson). Lepsza dla niskich zliczeń i zaszumionych danych.
+  - **Wariant MLEM:**
+    - **CLASSIC:** Standardowy algorytm Richardsona-Lucy. Stabilny, ale wolny.
+    - **R-OS-SPS (Relaxed Ordered Subsets Separable Paraboloidal Surrogates):** Przyspieszony wariant wykorzystujący podzbiory danych (Ordered Subsets) i relaksację.
+  - **Maska źródeł 0/1 (sloty):** Pozwala na wykluczenie wybranych źródeł z analizy.
+  - **Parametry R-OS-SPS:**
+    - **alpha0:** Początkowy współczynnik relaksacji.
+    - **tau:** Parametr sterujący szybkością zaniku alpha.
+    - **subsets:** Liczba podzbiorów danych (przyspiesza zbieżność).
+  - **Cap factor:** Ograniczenie wpływu pojedynczych obserwacji na oszacowanie kowariancji (dla MLEM).
 
 ### 2. Dodawanie i Edytowanie Detektorów
 - **Dodawanie detektora:**  
@@ -102,13 +114,24 @@ Program realizuje analizę w kilku etapach:
 - Dane zliczeń są korygowane przy użyciu funkcji `correct_counts`, aby uwzględnić czas trwania pomiaru.
 
 #### b) Dopasowanie modelu
-- Z uzyskanej macierzy A oraz wektora zliczeń **y**, wraz z przypisanymi wagami (błędy pomiarowe), rozwiązywany jest problem NNLS (Non-Negative Least Squares). Celem jest znalezienie parametrów $\( x_{\text{nnls}} \)$, tak aby:
-  $$
-  A \times x \approx y
-  $$
+Z uzyskanej macierzy A oraz wektora zliczeń **y** rozwiązywany jest problem odwrotny $A \times x \approx y$. Program oferuje dwa podejścia matematyczne:
+
+1. **NNLS (Non-Negative Least Squares):**
+   - Minimalizuje funkcję kosztu $\chi^2 = \sum \frac{(y_i - (Ax)_i)^2}{\sigma_i^2}$ przy warunku $x \ge 0$.
+   - Zakłada gaussowski rozkład błędów pomiarowych.
+   - Jest to metoda szybka, dająca jednoznaczny wynik, preferowana gdy liczba zliczeń jest duża (statystyka Gaussa).
+
+2. **MLEM (Maximum Likelihood Expectation Maximization):**
+   - Maksymalizuje logarytm funkcji wiarygodności dla rozkładu Poissona: $L(x) = \sum (y_i \ln((Ax)_i) - (Ax)_i)$.
+   - Jest to metoda iteracyjna, która naturalnie uwzględnia poissonowską naturę zliczeń (szczególnie ważne przy niskiej statystyce).
+   - **Warianty:**
+     - **CLASSIC:** Standardowy algorytm (Richardson-Lucy). Aktualizuje rozwiązanie po przetworzeniu wszystkich danych. Jest stabilny, ale zbiega powoli.
+     - **R-OS-SPS:** Dzieli dane na $S$ podzbiorów (subsets). Aktualizacja następuje po każdym podzbiorze, co przyspiesza zbieżność ok. $S$-krotnie. Wymaga parametrów relaksacji ($\alpha, \tau$) dla zachowania stabilności numerycznej.
 
 #### c) Obliczenie błędów i propagacja niepewności
 - Po dopasowaniu modelu obliczana jest macierz kowariancji parametrów.
+  - Dla **NNLS** używana jest klasyczna estymacja wariancji resztowej.
+  - Dla **MLEM** stosowany jest estymator typu "sandwich" (robust) z ograniczeniem wpływu pojedynczych obserwacji (Cap factor).
 - Przy użyciu propagacji błędów wyznaczany jest błąd dla każdej wyestymowanej wartości $\( y_{\text{est}} \)$:
   $$
   \text{cov}_{y_{\text{est}}} = A_{\text{wysokie}} \times \text{cov}_x \times A_{\text{wysokie}}^T, \quad y_{\text{est\_errors}} = \sqrt{\text{diag}(\text{cov}_{y_{\text{est}}})}.
@@ -132,7 +155,9 @@ Dla każdego detektora wyznaczane są następujące metryki:
 
 ### 4. Prezentacja Wyników
 - **Wyniki tekstowe:**  
-  Wyniki analizy, w tym oszacowane parametry, błędy, wartość chi-kwadrat oraz metryki jakości, są wyświetlane w polu **Wyniki analizy**. Dla każdego detektora prezentowane są szczegółowe informacje, co ułatwia identyfikację potencjalnych problemów.
+  Wyniki analizy, w tym oszacowane parametry, błędy, wartość chi-kwadrat (dla NNLS) oraz metryki jakości, są wyświetlane w polu **Wyniki analizy**. Dla każdego detektora prezentowane są szczegółowe informacje, co ułatwia identyfikację potencjalnych problemów.
+- **Logi:**
+  Każda analiza jest automatycznie zapisywana do pliku tekstowego w katalogu `logs/`. Nazwa pliku zawiera datę, godzinę oraz użytą metodę.
 - **Wykresy:**  
   Program generuje następujące rodzaje wykresów:
   - **Dane vs. Model:**  
