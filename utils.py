@@ -106,14 +106,18 @@ def build_A_matrix(A_single, detector, general_params, lam_vector, n_measurement
 
     # Budowa macierzy A
     n_iso = len(lam_vector)
+
     A_mat = zeros((m, n_sources * n_iso), dtype=float64)
+
     for i in range(m):
         # Przesunięty wektor – wykorzystujemy roll z dodatkowym przesunięciem (+1)
-        rolled = roll(A_single, cs[i] + 1)
+        rolled = roll(A_single, cs[i])
         dt_i = dt_list[i]
+        t_start_i = t_starts[i]
+
         for j, lam_val in enumerate(lam_vector):
             # Obliczamy czynnik skalujący dla konkretnej λ
-            factor = (1 - exp(-lam_val * dt_i)) * exp(-lam_val * t_starts[i]) * intensity
+            factor = (1 - exp(-lam_val * dt_i)) * exp(-lam_val * t_start_i) * intensity
             # Produkt element-po-elemencie – skalujemy cały wektor
             A_mat[i, 16 * j:16 * (j + 1)] = array(rolled) * factor
     return A_mat, m, scheme, A_single, cs, dt_list, t_starts
@@ -151,7 +155,7 @@ def plot_each_fit(A_single, cs, dt_list, t_starts, y, intensity, lam, tol=1e-6):
     for s in range(n_sources):
         F_list, y_list = [], []
         for i in range(m):
-            rolled = roll(A_single[::-1], cs[i] + 1)
+            rolled = roll(A_single[::-1], cs[i])
             if abs(rolled[s] - A_single[s]) < tol and A_single[s] > 0:
                 F_value = (1 - exp(-lam * dt_list[i])) * exp(-lam * t_starts[i]) * intensity * A_single[s]
                 F_list.append(F_value)
@@ -202,8 +206,9 @@ def alternative_exponential_decay_fit(A_single, cs, dt_list, t_starts, y, u_y, l
     source_data = {s: {"t0": [], "dt": [], "y": [], "u_y": []} for s in range(n_sources)}
     A_single_arr = array(A_single)
     for i in range(m):
-        rolled = roll(A_single_arr, cs[i] + 1)
+        rolled = roll(A_single_arr, cs[i])
         s_measured = int(argmax(rolled))
+        print("Debug: i =", i, "cs[i] =", cs[i], "s_measured =", s_measured)
         source_data[s_measured]["t0"].append(t_starts[i])
         source_data[s_measured]["dt"].append(dt_list[i])
         source_data[s_measured]["y"].append(y[i])

@@ -22,13 +22,14 @@ def get_subplot_grid(n):
         return (2, 3)
 
 
-
 # bezpieczne parsowanie numeryczne:
 def _safe_float(s, default):
     try:
         return float(str(s).replace(",", "."))
     except Exception:
         return default
+
+
 def _safe_int(s, default):
     try:
         return int(float(str(s).replace(",", ".")))
@@ -170,6 +171,8 @@ class DetectorDialog(Toplevel):
 # =============================================================================
 # OKNO GŁÓWNE APLIKACJI
 # =============================================================================
+
+
 class MainApplication(Tk):
     def __init__(self):
         super().__init__()
@@ -179,7 +182,7 @@ class MainApplication(Tk):
             "lam": 0.0005672978299613248,
             "time_delay": 479.4,
             "TOB": 332.1,
-            "intensity": 1.99534,
+            "intensity": 1.9983,
             "a": 5
         }
         self.detectors = []  # lista detektorów
@@ -188,8 +191,8 @@ class MainApplication(Tk):
         self.mlem_variant = StringVar(value=self.general_params.get("mlem_variant", "CLASSIC"))
         self.support_mask_sources_var = StringVar(value=self.general_params.get("support_mask_sources", ""))
 
-        self.alpha0_var  = StringVar(value=str(self.general_params.get("alpha0", 1.0)))
-        self.tau_var     = StringVar(value=str(self.general_params.get("tau", 25.0)))
+        self.alpha0_var = StringVar(value=str(self.general_params.get("alpha0", 1.0)))
+        self.tau_var = StringVar(value=str(self.general_params.get("tau", 25.0)))
         self.subsets_var = StringVar(value=str(self.general_params.get("subsets", 8)))
         self.cov_cap_factor_var = StringVar(value=str(self.general_params.get("cov_cap_factor", 4.0)))
 
@@ -280,33 +283,27 @@ class MainApplication(Tk):
         self.cov_cap_factor_var = StringVar(value=str(self.general_params.get("cov_cap_factor", 4.0)))
         self.cov_cap_factor_entry = Entry(frame_params, width=10, textvariable=self.cov_cap_factor_var)
         self.cov_cap_factor_entry.grid(row=4, column=3, sticky="w", padx=5, pady=2)
-
-    
+        
         # Add tooltip functionality
         def create_tooltip(widget, text):
             def on_enter(event):
                 tooltip = Toplevel()
                 tooltip.wm_overrideredirect(True)
                 tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
-                label = Label(tooltip, text=text, background="lightyellow", 
-                            relief="solid", borderwidth=1, wraplength=300)
+                label = Label(tooltip, text=text, background="lightyellow", relief="solid", borderwidth=1, wraplength=300)
                 label.pack()
                 widget.tooltip = tooltip
-            
+
             def on_leave(event):
                 if hasattr(widget, 'tooltip'):
                     widget.tooltip.destroy()
                     del widget.tooltip
-            
+
             widget.bind("<Enter>", on_enter)
             widget.bind("<Leave>", on_leave)
-        
+
         # Add tooltip to cap factor label
-        create_tooltip(cap_factor_label, 
-                    "Maksymalna dopuszczalna kwadratowa reszta Pearsona - "
-                    "ogranicza wpływ pojedynczych obserwacji na oszacowanie "
-                    "kowariancji w metodach MLEM, zapobiegając niestabilności "
-                    "numerycznej przy dużych resztach.")
+        create_tooltip(cap_factor_label, "Maksymalna dopuszczalna kwadratowa reszta Pearsona - ogranicza wpływ pojedynczych obserwacji na oszacowanie kowariancji w metodach MLEM, zapobiegając niestabilności numerycznej przy dużych resztach.")
 
         # --- włączanie/wyłączanie kontrolek wariantu i parametrów zależnie od metody ---
         def _toggle_mlem_fields(*_):
@@ -367,9 +364,7 @@ class MainApplication(Tk):
         for det in self.detectors:
             self.detectors_listbox.insert(END, det["name"])
 
-
     def show_alternative_analysis(self, alternatives, x_nnls, method_label):
-
         num_detectors = len(alternatives)
         rows, cols = get_subplot_grid(num_detectors)
         fig, axs = subplots(rows, cols, figsize=(8 * cols, 4 * rows))
@@ -411,7 +406,7 @@ class MainApplication(Tk):
         sigma_avg = sqrt(1.0 / W_sum)
 
         # wykres agregowany – jeden subplot na izotop
-        fig_aggr, axs_aggr = subplots(n_iso, 1, figsize=(8, 3*n_iso))
+        fig_aggr, axs_aggr = subplots(n_iso, 1, figsize=(8, 3 * n_iso))
         if n_iso == 1:
             axs_aggr = [axs_aggr]
         for j, iso in enumerate(isotopy):
@@ -421,7 +416,7 @@ class MainApplication(Tk):
             ax.errorbar(sources, avg_alt[j], yerr=sigma_avg[j],
                         fmt='o-', capsize=5, color='blue', label='Alt avg')
             # NNLS (skalowane)
-            nnls_vals = array(x_nnls[16*j:16*(j+1)]) * nuclear_data[iso]
+            nnls_vals = array(x_nnls[16 * j:16 * (j + 1)]) * nuclear_data[iso]
             ax.plot(sources, nnls_vals, 's--', color='red', 
                     markersize=6, label=method_label)
             ax.set_title(f"Izotop {iso} – średnia alt vs NNLS")
@@ -442,7 +437,7 @@ class MainApplication(Tk):
             self.general_params["mlem_variant"] = self.mlem_variant.get()
             self.general_params["support_mask_sources"] = self.support_mask_sources_var.get().strip()
 
-            self.general_params["alpha0"]  = _safe_float(self.alpha0_var.get(), 1.0)
+            self.general_params["alpha0"] = _safe_float(self.alpha0_var.get(), 1.0)
             self.general_params["tau"]     = _safe_float(self.tau_var.get(), 25.0)
             self.general_params["subsets"] = _safe_int(self.subsets_var.get(), 8)
             self.general_params["cov_cap_factor"] = _safe_float(self.cov_cap_factor_var.get(), 4.0)

@@ -172,7 +172,9 @@ def analysis(general_params, detectors):
 
     # --- ROZWIĄZANIE WYBRANĄ METODĄ (NNLS / MLEM / R-OS-SPS) ---
     x_est, method_used, A_eff, supp = _solve_with_selected_method(A_wysokie, y, y_sigma, general_params)
+
     y_est = A_wysokie @ x_est
+    # x_est_for_output = x_est
 
     # NNLS: możemy policzyć błędy parametrów; dla MLEM pomiń (inne założenia stat.)
     param_errors = []
@@ -489,7 +491,6 @@ def mlem(A, y, x0=None, b=None, max_iter=200, tol=1e-5, damping=1.0, l2=0.0, l1=
         x = x_new
 
     return x
-
 
 # === R-OS-SPS (relaxed Ordered-Subsets SPS) ===
 
