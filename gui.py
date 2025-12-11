@@ -8,6 +8,8 @@ from json import dump, load, dumps
 from matplotlib.pyplot import figure, subplots, tight_layout, show, plot, title, xlabel, ylabel, legend, grid
 from numpy import array, sqrt, arange, stack, sum, ndarray, floating, integer, bool_
 from analysis import analysis, nuclear_data
+import pathlib
+import datetime as _dt
 
 
 def get_subplot_grid(n):
@@ -65,42 +67,42 @@ class DetectorDialog(Toplevel):
 
         # Row 0: Nazwa
         Label(frm, text="Nazwa:", **label_opts).grid(row=0, column=0, sticky="e")
-        self.entry_name = Entry(frm, **entry_opts)
+        self.entry_name = Entry(frm, **entry_opts)  # type: ignore
         self.entry_name.grid(row=0, column=1, columnspan=2, sticky="w", padx=5, pady=5)
 
         # Row 1: Plik A (wydajność)
         Label(frm, text="Plik A (wydajność):", **label_opts).grid(row=1, column=0, sticky="e")
-        self.entry_A_file = Entry(frm, **entry_opts)
+        self.entry_A_file = Entry(frm, **entry_opts)  # type: ignore
         self.entry_A_file.grid(row=1, column=1, sticky="w", padx=5, pady=5)
-        Button(frm, text="Przeglądaj", command=self.browse_A_file, **btn_opts).grid(row=1, column=2, padx=5, pady=5)
+        Button(frm, text="Przeglądaj", command=self.browse_A_file, **btn_opts).grid(row=1, column=2, padx=5, pady=5)  # type: ignore
 
         # Row 2: Plik zliczeń
         Label(frm, text="Plik zliczeń:", **label_opts).grid(row=2, column=0, sticky="e")
-        self.entry_counts_file = Entry(frm, **entry_opts)
+        self.entry_counts_file = Entry(frm, **entry_opts)  # type: ignore
         self.entry_counts_file.grid(row=2, column=1, sticky="w", padx=5, pady=5)
-        Button(frm, text="Przeglądaj", command=self.browse_counts_file, **btn_opts).grid(row=2, column=2, padx=5, pady=5)
+        Button(frm, text="Przeglądaj", command=self.browse_counts_file, **btn_opts).grid(row=2, column=2, padx=5, pady=5)  # type: ignore
 
         # Row 3: Liczba pomiarów
         Label(frm, text="Liczba pomiarów:", **label_opts).grid(row=3, column=0, sticky="e")
-        self.entry_n_meas = Entry(frm, **entry_opts)
+        self.entry_n_meas = Entry(frm, **entry_opts)  # type: ignore
         self.entry_n_meas.grid(row=3, column=1, sticky="w", padx=5, pady=5)
 
         # Row 4: Izotopy
         Label(frm, text="Izotopy (przecinek):", **label_opts).grid(row=4, column=0, sticky="e")
-        self.entry_isotopy = Entry(frm, **entry_opts)
+        self.entry_isotopy = Entry(frm, **entry_opts)  # type: ignore
         self.entry_isotopy.grid(row=4, column=1, columnspan=2, sticky="w", padx=5, pady=5)
 
         # Row 5: Plik schematu rotacji
         Label(frm, text="Plik schematu rotacji:", **label_opts).grid(row=5, column=0, sticky="e")
-        self.entry_rot_scheme = Entry(frm, **entry_opts)
+        self.entry_rot_scheme = Entry(frm, **entry_opts)  # type: ignore
         self.entry_rot_scheme.grid(row=5, column=1, sticky="w", padx=5, pady=5)
-        Button(frm, text="Przeglądaj", command=self.browse_rot_scheme, **btn_opts).grid(row=5, column=2, padx=5, pady=5)
+        Button(frm, text="Przeglądaj", command=self.browse_rot_scheme, **btn_opts).grid(row=5, column=2, padx=5, pady=5)  # type: ignore
 
         # Row 6: Plik kroków rotacji
         Label(frm, text="Plik kroków rotacji:", **label_opts).grid(row=6, column=0, sticky="e")
-        self.entry_steps_scheme = Entry(frm, **entry_opts)
+        self.entry_steps_scheme = Entry(frm, **entry_opts)  # type: ignore
         self.entry_steps_scheme.grid(row=6, column=1, sticky="w", padx=5, pady=5)
-        Button(frm, text="Przeglądaj", command=self.browse_steps_scheme, **btn_opts).grid(row=6, column=2, padx=5, pady=5)
+        Button(frm, text="Przeglądaj", command=self.browse_steps_scheme, **btn_opts).grid(row=6, column=2, padx=5, pady=5)  # type: ignore
 
         # Row 7: Przyciski OK / Anuluj
         btn_frame = Frame(frm)
@@ -189,17 +191,16 @@ class MainApplication(Tk):
 
         self.fit_method = StringVar(value=self.general_params.get("fit_method", "NNLS"))
         self.mlem_variant = StringVar(value=self.general_params.get("mlem_variant", "CLASSIC"))
-        self.support_mask_sources_var = StringVar(value=self.general_params.get("support_mask_sources", ""))
+        self.support_mask_sources_var = StringVar(value=self.general_params.get("support_mask_sources", "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,"))
 
         self.alpha0_var = StringVar(value=str(self.general_params.get("alpha0", 1.0)))
         self.tau_var = StringVar(value=str(self.general_params.get("tau", 25.0)))
         self.subsets_var = StringVar(value=str(self.general_params.get("subsets", 8)))
         self.cov_cap_factor_var = StringVar(value=str(self.general_params.get("cov_cap_factor", 4.0)))
-
+        self.use_exp_as_x0 = BooleanVar(value=False)
 
         self.create_widgets()
         self.create_menu()
-
 
     def create_widgets(self):
         # Frame for general parameters with a grid layout for consistent alignment
@@ -218,8 +219,12 @@ class MainApplication(Tk):
 
         self.exp_analysis = BooleanVar(value=self.general_params.get("exp_analysis", True))
         Checkbutton(frame_params, text="Dodatkowa analiza za pomocą eksponensów",
-                        variable=self.exp_analysis).grid(row=0, column=4, padx=5, pady=2)
-        
+                    variable=self.exp_analysis).grid(row=0, column=4, padx=5, pady=2)
+
+        self.chk_use_exp_x0 = Checkbutton(frame_params, text="Użyj exp. jako x0 dla MLEM",
+                                          variable=self.use_exp_as_x0)
+        self.chk_use_exp_x0.grid(row=0, column=5, padx=5, pady=2)
+
         # Frame for detectors list with scrollbar
         frame_detectors = LabelFrame(self, text="Detektory")
         frame_detectors.pack(fill="both", expand=True, padx=10, pady=5)
@@ -230,7 +235,7 @@ class MainApplication(Tk):
         scrollbar = Scrollbar(frame_detectors, orient="vertical", command=self.detectors_listbox.yview)
         scrollbar.pack(side="right", fill="y", padx=5, pady=5)
         self.detectors_listbox.config(yscrollcommand=scrollbar.set)
-        
+
         # Frame for action buttons
         frame_buttons = Frame(self)
         frame_buttons.pack(fill="x", padx=10, pady=5)
@@ -238,7 +243,7 @@ class MainApplication(Tk):
         Button(frame_buttons, text="Edytuj detektor", command=self.edit_detector).pack(side="left", padx=5)
         Button(frame_buttons, text="Usuń detektor", command=self.remove_detector).pack(side="left", padx=5)
         Button(frame_buttons, text="Uruchom analizę", command=self.run_analysis).pack(side="right", padx=5)
-        
+
         # Frame for displaying analysis results
         frame_results = LabelFrame(self, text="Wyniki analizy")
         frame_results.pack(fill="both", expand=True, padx=10, pady=5)
@@ -248,7 +253,7 @@ class MainApplication(Tk):
         self.text_results.pack(fill="both", expand=True, padx=5, pady=5)
         scrollbar.config(command=self.text_results.yview)
 
-                # --- wybór metody ---
+        # --- wybór metody ---
         Label(frame_params, text="Metoda dopasowania:").grid(row=1, column=0, sticky="e", padx=5, pady=2)
         self.combo_fit = Combobox(frame_params, values=["NNLS", "MLEM"], textvariable=self.fit_method, width=12, state="readonly")
         self.combo_fit.grid(row=1, column=1, padx=5, pady=2)
@@ -278,12 +283,12 @@ class MainApplication(Tk):
         # --- cap factor parameter for covariance estimation ---
         cap_factor_label = Label(frame_params, text="Cap factor:")
         cap_factor_label.grid(row=4, column=2, sticky="e", padx=5, pady=2)
-    
+
         # Add StringVar for cap_factor
         self.cov_cap_factor_var = StringVar(value=str(self.general_params.get("cov_cap_factor", 4.0)))
         self.cov_cap_factor_entry = Entry(frame_params, width=10, textvariable=self.cov_cap_factor_var)
         self.cov_cap_factor_entry.grid(row=4, column=3, sticky="w", padx=5, pady=2)
-        
+
         # Add tooltip functionality
         def create_tooltip(widget, text):
             def on_enter(event):
@@ -308,6 +313,7 @@ class MainApplication(Tk):
         # --- włączanie/wyłączanie kontrolek wariantu i parametrów zależnie od metody ---
         def _toggle_mlem_fields(*_):
             is_mlem = self.fit_method.get().upper() == "MLEM"
+            is_exp = self.exp_analysis.get()
             variant = self.mlem_variant.get().upper()
             self.combo_mlem.configure(state=("readonly" if is_mlem else "disabled"))
             # alpha0/tau/subsets tylko dla R-OS-SPS:
@@ -315,11 +321,17 @@ class MainApplication(Tk):
             self.alpha0_entry.configure(state=state_params)
             self.tau_entry.configure(state=state_params)
             self.subsets_entry.configure(state=state_params)
+            # checkbox exp_as_x0 dostępny tylko gdy MLEM i exp_analysis włączone
+            state_exp_x0 = ("normal" if (is_mlem and is_exp) else "disabled")
+            self.chk_use_exp_x0.configure(state=state_exp_x0)
+            if not (is_mlem and is_exp):
+                self.use_exp_as_x0.set(False)
 
         _toggle_mlem_fields()
         self.fit_method.trace_add("write", _toggle_mlem_fields)
         self.mlem_variant.trace_add("write", _toggle_mlem_fields)
-            
+        self.exp_analysis.trace_add("write", _toggle_mlem_fields)
+
     def create_menu(self):
         menubar = Menu(self)
         filemenu = Menu(menubar, tearoff=0)
@@ -329,14 +341,14 @@ class MainApplication(Tk):
         filemenu.add_command(label="Wyjście", command=self.quit)
         menubar.add_cascade(label="Plik", menu=filemenu)
         self.config(menu=menubar)
-    
+
     def add_detector(self):
         dialog = DetectorDialog(self)
         self.wait_window(dialog)
         if dialog.result:
             self.detectors.append(dialog.result)
             self.update_detectors_listbox()
-    
+
     def edit_detector(self, event=None):
         selection = self.detectors_listbox.curselection()
         if not selection:
@@ -349,7 +361,7 @@ class MainApplication(Tk):
         if dialog.result:
             self.detectors[index] = dialog.result
             self.update_detectors_listbox()
-    
+
     def remove_detector(self):
         selection = self.detectors_listbox.curselection()
         if not selection:
@@ -358,7 +370,7 @@ class MainApplication(Tk):
         index = selection[0]
         del self.detectors[index]
         self.update_detectors_listbox()
-    
+
     def update_detectors_listbox(self):
         self.detectors_listbox.delete(0, END)
         for det in self.detectors:
@@ -381,21 +393,19 @@ class MainApplication(Tk):
             # Rysujemy alternatywną analizę – mniejsze znaczenie (alpha = 0.6)
             for j, iso in enumerate(isotopy):
                 sources = arange(1, len(alt_A0[j]) + 1)
-                ax.errorbar(sources, alt_A0[j], yerr=alt_err[j], fmt='o', capsize=5,
-                            label=f"Alt {iso}", alpha=0.6)
+                ax.errorbar(sources, alt_A0[j], yerr=alt_err[j], fmt='o', capsize=5, label=f"Alt {iso}", alpha=0.6)  # type: ignore
             # Nałożenie wyników NNLS – powinny być główne (gruba linia, większe markery)
             for j, iso in enumerate(isotopy):
                 sources = arange(1, 17)  # 16 źródeł (slotów)
                 nnls_vals = array(x_nnls[16 * j:16 * (j + 1)])
                 nnls_scaled = nnls_vals * nuclear_data[iso]
-                ax.plot(sources, nnls_scaled, 's-', linewidth=2.5,
-                        markersize=8, label=f"{method_label} {iso}")
-            ax.set_title(f"Alternative Exponential Fit - {det_name}")
-            ax.set_xlabel("Źródło (slot)")
-            ax.set_ylabel("Rekonstruowana aktywność (Bq)")
-            ax.set_yscale('log')
-            ax.legend(fontsize=9)
-            ax.grid(True)
+                ax.plot(sources, nnls_scaled, 's-', linewidth=2.5, markersize=8, label=f"{method_label} {iso}")  # type: ignore
+            ax.set_title(f"Alternative Exponential Fit - {det_name}")  # type: ignore
+            ax.set_xlabel("Źródło (slot)")  # type: ignore
+            ax.set_ylabel("Rekonstruowana aktywność (Bq)")  # type: ignore
+            ax.set_yscale('log')  # type: ignore
+            ax.legend(fontsize=9)  # type: ignore
+            ax.grid(True)  # type: ignore
 
         alt_arr = stack([alt_A0 for (_, alt_A0, _) in alternatives], axis=0)
         err_arr = stack([alt_err for (_, _, alt_err) in alternatives], axis=0)
@@ -417,8 +427,7 @@ class MainApplication(Tk):
                         fmt='o-', capsize=5, color='blue', label='Alt avg')
             # NNLS (skalowane)
             nnls_vals = array(x_nnls[16 * j:16 * (j + 1)]) * nuclear_data[iso]
-            ax.plot(sources, nnls_vals, 's--', color='red', 
-                    markersize=6, label=method_label)
+            ax.plot(sources, nnls_vals, 's--', color='red', markersize=6, label=method_label)
             ax.set_title(f"Izotop {iso} – średnia alt vs NNLS")
             ax.set_xlabel("Źródło (slot)")
             ax.set_ylabel("Aktywność [Bq]")
@@ -438,9 +447,10 @@ class MainApplication(Tk):
             self.general_params["support_mask_sources"] = self.support_mask_sources_var.get().strip()
 
             self.general_params["alpha0"] = _safe_float(self.alpha0_var.get(), 1.0)
-            self.general_params["tau"]     = _safe_float(self.tau_var.get(), 25.0)
+            self.general_params["tau"] = _safe_float(self.tau_var.get(), 25.0)
             self.general_params["subsets"] = _safe_int(self.subsets_var.get(), 8)
             self.general_params["cov_cap_factor"] = _safe_float(self.cov_cap_factor_var.get(), 4.0)
+            self.general_params["use_exp_as_x0"] = self.use_exp_as_x0.get()
         except Exception as e:
             messagebox.showerror("Błąd", f"Błąd przy wczytywaniu parametrów ogólnych: {e}")
             return
@@ -496,15 +506,15 @@ class MainApplication(Tk):
                 scheme_plot_index = 0
                 for i in range(num_detectors):
                     if results["detector_has_scheme"][i]:
-                        ax3 = axs3[scheme_plot_index]
+                        ax3 = axs3[scheme_plot_index]  # type: ignore
                         A_block = results["A_blocks"][i]
                         im = ax3.imshow(A_block, aspect='auto', interpolation='nearest')
-                        fig3.colorbar(im, ax=ax3)
+                        fig3.colorbar(im, ax=ax3)  # type: ignore
                         ax3.set_title(f"Macierz wydajności - {results['detector_names'][i]}")
                         ax3.set_xlabel("Izotopy")
                         ax3.set_ylabel("Pomiary")
                         scheme_plot_index += 1
-                fig3.tight_layout()
+                fig3.tight_layout()  # type: ignore
             return
 
         # Wypisanie wyników NNLS i metryk
@@ -539,8 +549,8 @@ class MainApplication(Tk):
             self.text_results.insert(END, "Oszacowane aktywności (dla poszczególnych izotopów):\n")
             for j, iso in enumerate(isotopy):
                 for s in range(n_sources):
-                    act = x_vec[n_sources*j + s]
-                    err = array(param_errs)[n_sources*j + s] if param_errs else 0.0
+                    act = x_vec[n_sources * j + s]
+                    err = array(param_errs)[n_sources * j + s] if param_errs else 0.0
                     self.text_results.insert(END, f"Źródło {s+1} - {iso}: {(act * nuclear_data[iso]):.2e} ± {(err * nuclear_data[iso]):.2e}\n")
 
         if self.general_params.get("exp_analysis", False):
@@ -569,10 +579,7 @@ class MainApplication(Tk):
             ax1 = axs1[i]
             ax1.errorbar(range(m_det), y_det, yerr=y_err, fmt='o', color="blue", label="Pomiar", alpha=0.6)
             ax1.plot(range(m_det), y_est, '-r', label="Model (A·x)", alpha=0.8)
-            ax1.fill_between(range(m_det),
-                            y_est - 3 * y_est_err,
-                            y_est + 3 * y_est_err,
-                            color='red', alpha=0.3, label='Przedział błędu modelu')
+            ax1.fill_between(range(m_det), y_est - 3 * y_est_err, y_est + 3 * y_est_err, color='red', alpha=0.3, label='Przedział błędu modelu')
             ax1.set_title(f"Detektor: {results['detector_names'][i]} - dane vs. model")
             ax1.set_xlabel("Numer pomiaru")
             ax1.set_ylabel("Skorygowane zliczenia")
@@ -591,7 +598,7 @@ class MainApplication(Tk):
 
             # Macierz wydajności, jeśli dostępna
             if results["detector_has_scheme"][i] and fig3:
-                ax3 = axs3.pop(0)
+                ax3 = axs3.pop(0)  # type: ignore
                 A_block = results["A_blocks"][i]
                 im = ax3.imshow(A_block, aspect='auto', interpolation='nearest')
                 fig3.colorbar(im, ax=ax3)
@@ -604,13 +611,8 @@ class MainApplication(Tk):
         if fig3:
             fig3.tight_layout()
         if self.general_params.get("exp_analysis", False):
-            self.show_alternative_analysis(results["alt_results"],
-                                   results.get("x_est", []),
-                                   results.get("method", ""))
+            self.show_alternative_analysis(results["alt_results"], results.get("x_est", []), results.get("method", ""))
         show()
-
-
-    
 
     def _json_default(self, o):
         """Konwersja obiektów niewspieranych przez json na typy podstawowe."""
@@ -626,7 +628,7 @@ class MainApplication(Tk):
             return bool(o)
         # Path, datetime, inne egzotyczne -> str
         try:
-            import pathlib, datetime as _dt
+
             if isinstance(o, (pathlib.Path,)):
                 return str(o)
             if isinstance(o, (_dt.datetime, _dt.date, _dt.time)):
@@ -635,7 +637,7 @@ class MainApplication(Tk):
             pass
         # fall-back
         return str(o)
-    
+
     def _save_analysis_report(self, results: dict):
         """
         Zapisuje raport tekstowy (UTF-8) z kompletem danych do folderu logs/.
@@ -660,7 +662,7 @@ class MainApplication(Tk):
 
             # 5) zbuduj treść raportu (tekst + JSON z kompletem danych)
             header_lines = [
-                f"# Raport analizy",
+                "# Raport analizy",
                 f"Data/godzina: {now.isoformat(timespec='milliseconds')}",
                 f"Metoda: {method}",
                 "",
@@ -689,7 +691,6 @@ class MainApplication(Tk):
             if hasattr(self, "text_results"):
                 self.text_results.insert("end", f"\n[LOG][BŁĄD] Nie udało się zapisać raportu: {e}\n")
 
-
     def save_project(self):
         project = {
             "general_params": self.general_params,
@@ -704,7 +705,7 @@ class MainApplication(Tk):
                 messagebox.showinfo("Sukces", "Projekt zapisany.")
             except Exception as e:
                 messagebox.showerror("Błąd", f"Błąd przy zapisie projektu: {e}")
-    
+
     def load_project(self):
         filename = filedialog.askopenfilename(title="Wczytaj projekt", filetypes=[("JSON", "*.json")])
         if filename:

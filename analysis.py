@@ -171,7 +171,12 @@ def analysis(general_params, detectors):
     N, k = A_wysokie.shape
 
     # --- ROZWIĄZANIE WYBRANĄ METODĄ (NNLS / MLEM / R-OS-SPS) ---
-    x_est, method_used, A_eff, supp = _solve_with_selected_method(A_wysokie, y, y_sigma, general_params)
+    # Przygotuj x0 z analizy eksponencjalnej jeśli włączone
+    x0_from_exp = None
+    if general_params.get("use_exp_as_x0", False) and alt_results:
+        x0_from_exp = _build_x0_from_alt_results(alt_results, A_wysokie.shape[1])
+
+    x_est, method_used, A_eff, supp = _solve_with_selected_method(A_wysokie, y, y_sigma, general_params, x0_from_exp)
 
     y_est = A_wysokie @ x_est
     # x_est_for_output = x_est
@@ -270,7 +275,42 @@ def analysis(general_params, detectors):
     }
 
 
-def _solve_with_selected_method(A_full, y, y_sigma, general_params):
+def _build_x0_from_alt_results(alt_results, n_cols):
+    """
+    Buduje wektor x0 z wyników alternatywnej analizy eksponencjalnej.
+    alt_results: lista (det_name, alt_A0, alt_err) gdzie alt_A0[j][s] to aktywność izotopu j w slocie s
+    n_cols: liczba kolumn macierzy A (n_sources * n_iso)
+    """
+    # Zakładamy 16 źródeł
+    n_sources = 16
+    n_iso = n_cols // n_sources
+
+    x0 = zeros(n_cols, dtype=float)
+
+    # Uśredniamy wyniki ze wszystkich detektorów (ważone)
+    for det_name, alt_A0, alt_err in alt_results:
+        if alt_A0 is None:
+            continue
+        for j in range(min(n_iso, len(alt_A0))):
+            for s in range(min(n_sources, len(alt_A0[j]))):
+                # alt_A0[j][s] to już aktywność * lambda, więc trzeba podzielić przez lambda
+                # ale w macierzy A mamy x jako aktywność, więc używamy bezpośrednio
+                val = alt_A0[j][s]
+                if val > 0:
+                    x0[j * n_sources + s] += val
+
+    # Jeśli było więcej detektorów, uśredniamy
+    n_valid_dets = len([1 for (_, alt_A0, _) in alt_results if alt_A0 is not None])
+    if n_valid_dets > 1:
+        x0 /= n_valid_dets
+
+    # Zapewnij wartości dodatnie
+    x0 = maximum(x0, 1e-12)
+
+    return x0
+
+
+def _solve_with_selected_method(A_full, y, y_sigma, general_params, x0_from_exp=None):
     """
     Zwraca (x_est, method_used).
     Czyta z general_params:
@@ -279,6 +319,7 @@ def _solve_with_selected_method(A_full, y, y_sigma, general_params):
       - support_mask_sources: "0/1,..." (sloty)  [opcjonalnie]
       - support_mask_full:    "0/1,..." (kolumny)[opcjonalnie]
       - alpha0, tau, subsets  [dla R-OS-SPS]
+    x0_from_exp: opcjonalny wektor startowy z analizy eksponencjalnej
     """
     n_cols = A_full.shape[1]
     # heurystyka liczby slotów: 16; jeśli znasz ją lepiej — nadpisz w general_params["n_sources"]
@@ -304,17 +345,27 @@ def _solve_with_selected_method(A_full, y, y_sigma, general_params):
     if fit_method == "MLEM":
         variant = str(general_params.get("mlem_variant", "CLASSIC")).upper()
         b = zeros_like(y)
+
+        # Przygotuj x0 - z analizy eksponencjalnej lub domyślne
+        if x0_from_exp is not None:
+            # Zredukuj x0 do aktywnych kolumn (support)
+            x0_red = x0_from_exp[supp]
+            x0_red = maximum(x0_red, 1e-12)
+            print(f"Używam x0 z analizy eksponencjalnej (suma: {sum(x0_red):.2e})")
+        else:
+            x0_red = None
+
         if variant == "R-OS-SPS":
             alpha0 = float(general_params.get("alpha0", 1.0))
             tau = float(general_params.get("tau", 25.0))
             subsets = int(general_params.get("subsets", 8))
-            x_red = relaxed_os_sps(A, y, x0=None, b=b,
+            x_red = relaxed_os_sps(A, y, x0=x0_red, b=b,
                                    subsets=subsets, max_outer=int(general_params.get("max_iter", 200)),
                                    alpha0=alpha0, tau=tau, backtracking=True,
                                    tol=float(general_params.get("tol", 1e-5)))
             method_used = "MLEM (R-OS-SPS)"
         else:
-            x_red = mlem(A, y, x0=init_x_mlem(A, y), b=b,
+            x_red = mlem(A, y, x0=x0_red if x0_red is not None else init_x_mlem(A, y), b=b,
                          max_iter=int(general_params.get("max_iter", 200)),
                          tol=float(general_params.get("tol", 1e-5)),
                          damping=float(general_params.get("damping", 1.0)),
